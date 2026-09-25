@@ -1,0 +1,24 @@
+# forklift_interfaces/action/DockRobot.action
+
+uint8 DOCK_CHARGING_STATION=0
+uint8 DOCK_PALLET_PICK=1
+uint8 DOCK_PALLET_DROP=2
+
+string station_id
+uint8 dock_type
+float32 approach_speed
+---
+bool success
+string message
+float32 final_alignment_error
+---
+uint8 STAGE_SEARCHING=0
+uint8 STAGE_ALIGNING=1
+uint8 STAGE_APPROACHING=2
+uint8 STAGE_FINAL_ADJUST=3
+uint8 STAGE_LOCKED=4
+
+uint8 stage
+float32 distance_to_target
+float32 lateral_error
+float32 yaw_error

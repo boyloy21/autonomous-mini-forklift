@@ -1,0 +1,14 @@
+material PalletMarker/Texture
+{
+  technique
+  {
+    pass
+    {
+      texture_unit
+      {
+        texture ../textures/marker_DICT_4X4_50_id0.png
+        scale 0.5 0.5
+      }
+    }
+  }
+}

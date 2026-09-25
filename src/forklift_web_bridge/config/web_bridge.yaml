@@ -1,0 +1,83 @@
+rosbridge_server_node:
+  ros__parameters:
+    port: 9090
+    address: "0.0.0.0"
+
+web_video_server_node:
+  ros__parameters:
+    port: 8080
+    address: "0.0.0.0"
+    server_threads: 4
+
+bridge_manager_node:
+  ros__parameters:
+    status_topic: "web_bridge/status"
+    publish_rate_hz: 1.0
+    navigate_action_name: "/navigate_to_pose"
+    execute_mission_action_name: "execute_mission"
+    execute_task_action_name: "execute_task"
+    diagnostics_topic: "diagnostics"
+    odom_topic: "odom"
+
+robot_state_node:
+  ros__parameters:
+    odom_topic: "/odom"
+    battery_topic: "/battery_state"
+    robot_state_topic: "web_bridge/robot_state"
+    publish_rate_hz: 5.0
+
+navigation_bridge_node:
+  ros__parameters:
+    nav_command_topic: "web_bridge/nav_command"
+    nav_status_topic: "web_bridge/navigation_status"
+    navigate_action_name: "/navigate_to_pose"
+    default_frame_id: "map"
+
+mission_bridge_node:
+  ros__parameters:
+    mission_command_topic: "web_bridge/mission_command"
+    mission_status_topic: "web_bridge/mission_status"
+    execute_mission_action_name: "/execute_mission"
+    default_frame_id: "map"
+    # Step detail from forklift_task_manager's task_status topic, merged
+    # into mission_status as its "task" object (README section 6.1).
+    task_status_topic: "task_status"
+    # JSON mirror for web clients; fastapi_bridge_node serves it at
+    # GET /task/status and roslibjs can subscribe to it directly.
+    task_status_bridge_topic: "web_bridge/task_status"
+    task_status_min_period_sec: 0.2
+    task_event_history: 10
+
+diagnostics_bridge_node:
+  ros__parameters:
+    diagnostics_topic: "/diagnostics"
+    summary_topic: "web_bridge/diagnostics_summary"
+
+fastapi_bridge_node:
+  ros__parameters:
+    rest_port: 8000
+    rest_address: "0.0.0.0"
+    robot_state_topic: "web_bridge/robot_state"
+    navigation_status_topic: "web_bridge/navigation_status"
+    mission_status_topic: "web_bridge/mission_status"
+    diagnostics_summary_topic: "web_bridge/diagnostics_summary"
+    bridge_status_topic: "web_bridge/status"
+    task_status_topic: "web_bridge/task_status"
+    nav_command_topic: "web_bridge/nav_command"
+    mission_command_topic: "web_bridge/mission_command"
+    # GET/POST /routes/graph: the file comes from route_server's own
+    # graph_filepath param unless route_graph_file is set; reload goes
+    # through <route_server_node>/set_route_graph.
+    route_server_node: "route_server"
+    route_graph_file: ""
+    route_service_timeout_sec: 5.0   # also used for docking_server calls
+    # GET/POST /docks: file comes from <docking_server_node>'s
+    # dock_database param (else forklift_docking's installed copy) unless
+    # dock_database_file is set. POST reloads every docking_server found.
+    docking_server_node: "docking_server"
+    dock_database_file: ""
+    # GET/POST /missions/templates: file comes from <mission_server_node>'s
+    # mission_database param (else forklift_mission_manager's installed
+    # copy) unless mission_database_file is set. No reload call needed.
+    mission_server_node: "mission_server"
+    mission_database_file: ""

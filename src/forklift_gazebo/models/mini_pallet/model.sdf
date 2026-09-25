@@ -1,0 +1,137 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <model name="mini_pallet">
+    <!-- Dynamic (not static) so the forklift can actually lift/move it. -->
+    <link name="link">
+
+      <inertial>
+        <mass>0.1</mass>
+        <inertia>
+          <ixx>0.00033987</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.00056987</iyy>
+          <iyz>0</iyz>
+          <izz>0.00089667</izz>
+        </inertia>
+      </inertial>
+
+      <!-- Simplified single collision box for the whole pallet footprint:
+           260mm x 200mm x 28mm, origin at bottom center. -->
+      <collision name="collision">
+        <pose>0 0 0.014 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.26 0.20 0.028</size>
+          </box>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>0.8</mu>
+              <mu2>0.8</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+
+      <!-- Bottom stringers (3, running along Y, spaced along X to fit the
+           new 260mm length with the same 15mm edge margins as before) -->
+      <visual name="stringer_1">
+        <pose>-0.100 0 0.010 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.030 0.20 0.020</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.45 0.30 0.15 1</ambient>
+          <diffuse>0.55 0.38 0.20 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material>
+      </visual>
+      <visual name="stringer_2">
+        <pose>0 0 0.010 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.030 0.20 0.020</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.45 0.30 0.15 1</ambient>
+          <diffuse>0.55 0.38 0.20 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material>
+      </visual>
+      <visual name="stringer_3">
+        <pose>0.100 0 0.010 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.030 0.20 0.020</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.45 0.30 0.15 1</ambient>
+          <diffuse>0.55 0.38 0.20 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material>
+      </visual>
+
+      <!-- Top deck boards (4, running along X, now 260mm long, spaced
+           along Y, sitting on top of the 20mm stringers) -->
+      <visual name="deck_1">
+        <pose>0 -0.075 0.024 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.26 0.04 0.008</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.5 0.34 0.18 1</ambient>
+          <diffuse>0.6 0.42 0.22 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material>
+      </visual>
+      <visual name="deck_2">
+        <pose>0 -0.025 0.024 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.26 0.04 0.008</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.5 0.34 0.18 1</ambient>
+          <diffuse>0.6 0.42 0.22 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material>
+      </visual>
+      <visual name="deck_3">
+        <pose>0 0.025 0.024 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.26 0.04 0.008</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.5 0.34 0.18 1</ambient>
+          <diffuse>0.6 0.42 0.22 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material>
+      </visual>
+      <visual name="deck_4">
+        <pose>0 0.075 0.024 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.26 0.04 0.008</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.5 0.34 0.18 1</ambient>
+          <diffuse>0.6 0.42 0.22 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material>
+      </visual>
+
+    </link>
+  </model>
+</sdf>

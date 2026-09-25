@@ -1,0 +1,32 @@
+sensor_monitor_node:
+  ros__parameters:
+    lidar_topic: "/scan"
+    camera_topic: "/camera/image_raw"
+    imu_topic: "/imu"
+
+    lidar_timeout_sec: 2.0
+    camera_timeout_sec: 2.0
+    imu_timeout_sec: 1.0
+
+    lidar_min_freq_hz: 5.0
+    camera_min_freq_hz: 10.0
+    imu_min_freq_hz: 20.0
+
+    publish_rate_hz: 1.0
+    diagnostics_topic: "diagnostics"
+
+system_monitor_node:
+  ros__parameters:
+    cpu_warn_percent: 80.0
+    cpu_error_percent: 95.0
+
+    ram_warn_percent: 80.0
+    ram_error_percent: 95.0
+
+    temp_warn_c: 75.0
+    temp_error_c: 90.0
+
+    gpu_enabled: true
+
+    publish_rate_hz: 1.0
+    diagnostics_topic: "diagnostics"

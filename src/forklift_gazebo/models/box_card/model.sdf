@@ -1,0 +1,40 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <model name="box_stackA_1">
+  <pose>1.5 -2.0 0.081 0 0 1.5708</pose>
+
+  <link name="link">
+
+    <inertial>
+      <mass>0.2</mass>
+      <inertia>
+        <ixx>0.0001</ixx>
+        <iyy>0.0001</iyy>
+        <izz>0.0001</izz>
+      </inertia>
+    </inertial>
+
+    <collision name="collision">
+      <geometry>
+        <box>
+          <size>0.35 0.25 0.05</size>
+        </box>
+      </geometry>
+    </collision>
+
+    <visual name="visual">
+      <geometry>
+        <box>
+          <size>0.35 0.25 0.05</size>
+        </box>
+      </geometry>
+
+      <material>
+        <ambient>0.75 0.55 0.25 1</ambient>
+        <diffuse>0.85 0.65 0.30 1</diffuse>
+      </material>
+    </visual>
+
+  </link>
+</model>
+</sdf>

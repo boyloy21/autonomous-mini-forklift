@@ -1,0 +1,8 @@
+fastapi_bridge_node:
+  ros__parameters:
+    enable_rest_api: true
+    rest_host: "0.0.0.0"
+    rest_port: 8080
+    lift_pick_height: 0.15
+    lift_drop_height: 0.0
+    service_call_timeout_sec: 5.0

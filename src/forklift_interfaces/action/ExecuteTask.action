@@ -1,0 +1,33 @@
+# ExecuteTask.action
+#
+# Goal fields relevant per task_type:
+#   SINGLE_NAVIGATION -> goal_pose
+#   PATROL_POINT      -> waypoints[]
+#   PICK_PALLET_DOCK  -> dock_id, target_height (0.0 = use dock_database.yaml's lift: value)
+#   DROP_PALLET_DOCK  -> dock_id
+#   CHARGING_DOCK     -> dock_id
+#   STATION_DOCK      -> dock_id, station_wait_duration
+#
+# Goal
+string task_id
+string task_type
+geometry_msgs/PoseStamped goal_pose
+geometry_msgs/PoseStamped[] waypoints
+string dock_id
+float32 target_height
+float32 station_wait_duration
+---
+# Result
+bool success
+string error_code
+string message
+---
+# Feedback
+string task_id
+string task_type
+string current_step
+int32 step_index
+int32 total_steps
+string state
+float32 progress
+string message

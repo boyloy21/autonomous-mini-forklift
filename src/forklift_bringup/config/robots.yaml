@@ -1,0 +1,34 @@
+# robots.yaml
+#
+# Single source of truth for which robots exist, their spawn poses, and
+# which pre-made nav2 params file belongs to each (static-files-per-robot
+# strategy -- nav2_params_fl1.yaml has "forklift1" literally baked into
+# its topic-override fields, nav2_params_fl2.yaml has "forklift2", etc.
+# No runtime yaml rewriting/substitution -- these are maintained as
+# separate, concrete files, one per robot).
+#
+# IMPORTANT: keep the robot `name` values here matching the literal
+# "forklift1"/"forklift2"/"forklift3" strings baked into each robot's own
+# params_file topic overrides (scan_topic, map_topic, odom_topic,
+# costmap_topic, cmd_vel_in/out_topic) -- those two things have to agree,
+# there is no automatic check for it.
+#
+# Also keep this in sync with forklift_gazebo's multi-robot spawn launch
+# file's own `robots = [...]` list -- not automatically unified in this
+# pass.
+
+robots:
+  - name: forklift1
+    x_pose: -1.0
+    y_pose: -0.5
+    z_pose: 0.0
+  
+  # - name: forklift2
+  #   x_pose: -1.0
+  #   y_pose: -1.5
+  #   z_pose: 0.0
+    
+  # - name: forklift3
+  #   x_pose: -1.0
+  #   y_pose: -2.5
+  #   z_pose: 0.0

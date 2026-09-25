@@ -1,0 +1,17 @@
+# traffic_manager.yaml
+#
+# Fleet membership for the traffic_manager node -- must list every robot
+# namespace that has the TrafficReservation route_server operation enabled
+# (see nav2_multirobot_params.yaml's route_server.operations). Keep this in
+# sync with forklift_navigation/config/robots.yaml's active (uncommented)
+# robot names, same manual-sync convention already used between that file
+# and forklift_gazebo's spawn list.
+
+traffic_manager:
+  ros__parameters:
+    robots: ["forklift1", "forklift2"]
+    # Suffix appended to "/<robot>/" to reach each robot's DynamicEdgesScorer
+    # service. Must match the route_server operations/edge_cost_functions
+    # plugin instance name used in nav2_multirobot_params.yaml
+    # (edge_cost_functions -> "DynamicEdgesScorer" key).
+    dynamic_edges_service_name: "route_server/DynamicEdgesScorer/adjust_edges"

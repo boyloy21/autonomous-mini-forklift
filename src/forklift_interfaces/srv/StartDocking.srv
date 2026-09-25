@@ -1,0 +1,6 @@
+# Request: the dock name to dock at 
+string dock_name
+---
+# Response
+bool success
+string message

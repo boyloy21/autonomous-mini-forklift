@@ -1,0 +1,139 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <model name="battery_charger_station">
+
+    <!-- The charger is a fixed structure in the world -->
+    <static>true</static>
+
+    <!-- ============================================================ -->
+    <!-- base_link: housing + ArUco marker face + dock contact sensor -->
+    <!-- ============================================================ -->
+    <link name="base_link">
+      <collision name="body_collision">
+        <pose>0 0 0.30 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.40 0.05 0.60</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <visual name="body_visual">
+        <pose>0 0 0.30 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.40 0.05 0.60</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.16 1</ambient>
+          <diffuse>0.20 0.20 0.22 1</diffuse>
+          <specular>0.3 0.3 0.3 1</specular>
+        </material>
+      </visual>
+
+      
+      <visual name="marker_visual">
+        <pose>0.00 -0.2 0.09 1.5707963 -1.5707963 0.0</pose>
+        <geometry>
+          <box>
+            <size>0.06 0.06 0.002</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+          <specular>0.05 0.05 0.05 1</specular>
+          <pbr>
+            <metal>
+              <albedo_map>materials/textures/marker_DICT_4X4_100_id4.png</albedo_map>
+              <roughness>0.9</roughness>
+              <metalness>0.0</metalness>
+            </metal>
+          </pbr>
+          <!-- legacy (non-PBR / ogre1) fallback -->
+          <script>
+            <uri>materials/scripts/charger.material</uri>
+            <name>Charger/ArucoMarker</name>
+          </script>
+        </material>
+      </visual>
+
+      <!-- Charging contact pad, touched by the robot's REAR. The model
+           must sit ON the floor (world pose z = 0): the housing then
+           reaches the ground, so the forks (0.037 to 0.057 m high) hit its
+           face instead of sliding under a floating housing and wedging.
+           The robot body spans about 0.03 to 0.21 m, so the pad covers
+           0.12 to 0.20 m, flush with the housing face (y = -0.025).
+           Name must stay "dock_contact_collision": forklift_docking's
+           RearChargingManeuver matches contacts on it. -->
+      <collision name="dock_contact_collision">
+        <pose>0 -0.035 0.16 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.20 0.02 0.08</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <visual name="dock_contact_visual">
+        <pose>0 -0.035 0.16 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.20 0.02 0.08</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.8 0.6 0.0 1</ambient>
+          <diffuse>0.9 0.7 0.0 1</diffuse>
+        </material>
+      </visual>
+
+      <!-- Every charger instance publishes on the SAME topic. Each message
+           carries scoped collision names (e.g.
+           "ChargerStation2::base_link::dock_contact_collision" and
+           "forklift1::base_link::base_link_collision"), so each robot can
+           tell whether IT is touching A charger pad. Bridged to ROS as
+           ros_gz_interfaces/Contacts by multiple_robot_world.launch.py.
+           Requires the world's Contact system plugin. -->
+      <sensor name='sensor_contact' type='contact'>
+        <contact>
+            <collision>dock_contact_collision</collision>
+            <topic>/charger_contacts</topic>
+        </contact>
+        <always_on>1</always_on>
+        <update_rate>100</update_rate>
+      </sensor>
+
+      <inertial>
+        <mass>20.0</mass>
+        <inertia>
+          <ixx>0.5</ixx>
+          <iyy>0.5</iyy>
+          <izz>0.2</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <!-- Publishes a Boolean whenever the dock contact sensor detects
+         the robot pushed into the pad. A separate ROS 2 / gz-transport
+         node subscribes to this and calls the robot's
+         /model/<robot>/battery/<battery_name>/recharge/start (or /stop)
+         service, per https://gazebosim.org/api/sim/7/battery.html -->
+    <!-- IMPORTANT: <target> must be the *robot's* model name as spawned in
+         the world (e.g. the <name> you give it in the world file / spawner),
+         NOT a link on this charger. Change "mini_forklift" below to match. -->
+    <!-- <plugin filename="libignition-gazebo-touchplugin-system.so"
+            name="ignition::gazebo::systems::TouchPlugin">
+      <target>forklift</target>
+      <namespace>battery_charger_station</namespace>
+      <time>0.1</time>
+      <enabled>true</enabled>
+    </plugin> -->
+    
+  </model>
+  
+</sdf>

@@ -1,0 +1,10 @@
+safety_manager_node:
+  ros__parameters:
+    max_speed_topic: "/max_speed"
+    status_timeout_sec: 2.0
+
+emergency_stop_node:
+  ros__parameters: {}
+
+safety_io_node:
+  ros__parameters: {}

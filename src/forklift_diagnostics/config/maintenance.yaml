@@ -1,0 +1,21 @@
+maintenance_monitor_node:
+  ros__parameters:
+    check_rate_hz: 0.1
+    
+    battery_health_percent: 92.0
+    battery_replace_threshold: 70.0
+
+    camera_last_calibrated_days_ago: 5.0
+    camera_calibration_interval_days: 30.0
+    lidar_last_calibrated_days_ago: 10.0
+    lidar_calibration_interval_days: 60.0
+    imu_last_calibrated_days_ago: 3.0
+    imu_calibration_interval_days: 14.0
+    wheel_last_calibrated_days_ago: 20.0
+    wheel_calibration_interval_days: 90.0
+
+    motor_runtime_hours: 120.0
+    motor_service_interval_hours: 500.0
+
+    firmware_version: "1.0.0"
+    firmware_expected_version: "1.0.0"

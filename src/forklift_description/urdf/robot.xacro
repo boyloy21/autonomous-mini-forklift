@@ -1,0 +1,178 @@
+<?xml version="1.0"?>
+<robot name="forklift" xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:arg name="GAZEBO" default="true"/>
+    <xacro:arg name="wheel_odom_topic" default="odom" />
+    <xacro:arg name="odometry_source" default="world" />
+    <xacro:arg name="robot_name" default="" />
+
+    <xacro:property name="odometry_source" value="$(arg odometry_source)"/>
+    <xacro:property name="robot_name" value="$(arg robot_name)"/>
+    <!-- Constants and Includes -->
+     <xacro:include filename="$(find forklift_description)/urdf/const.xacro"/>
+    <xacro:include filename="$(find forklift_description)/urdf/material.xacro"/>
+    <xacro:include filename="$(find forklift_description)/urdf/inertia.xacro"/>
+    <xacro:include filename="$(find forklift_description)/urdf/wheel.xacro"/>
+    <xacro:include filename="$(find forklift_description)/urdf/lift.xacro"/>
+    <xacro:include filename="$(find forklift_description)/urdf/transmission.xacro"/>
+    <!-- <xacro:include filename="$(find forklift_description)/urdf/ros2_control.xacro"/> -->
+    
+    
+    <xacro:if value="$(arg GAZEBO)">
+        <xacro:include filename="$(find forklift_description)/urdf/gazebo.xacro"/>
+        <xacro:gz_plugins prefix="${robot_name}"/>
+    </xacro:if>
+    <xacro:unless value="$(arg GAZEBO)">
+        <xacro:include filename="$(find forklift_description)/urdf/ros2_control.xacro"/>
+    </xacro:unless>
+    
+   
+
+    <!-- ................................ BASE LINK .................................. -->
+    <link name="base_footprint"/>
+
+    <link name="base_link">
+        <visual>
+            <origin xyz="-0.15 -0.045 0.15" rpy="0 0 3.14159"/>
+            <geometry>
+                <mesh filename="package://forklift_description/meshes/mini_forklift_base.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="yellow"/>
+        </visual>
+        <collision>
+            <origin xyz="-0.15 -0.045 0.15" rpy="0 0 3.14159"/>
+            <geometry>
+                <box size="${base_length} ${base_width} ${base_height}"/>
+            </geometry>
+        </collision>
+        <xacro:box_inertia m="${mass_base}" x="${base_length}" y="${base_width}" z="${base_height}"/>
+    </link>
+
+    <joint name="base_joint" type="fixed">
+        <parent link="base_footprint"/>
+        <child link="base_link"/>
+        <origin xyz="0.0 0.0 ${wheel_radius}" rpy="0 0 0"/>
+    </joint>
+
+
+    <!-- Wheels -->
+    <xacro:wheel prefix="left_wheel" x_reflect="-1" y_reflect="1"/>
+    <xacro:wheel prefix="right_wheel" x_reflect="1" y_reflect="-1"/>
+
+    <!-- Fork lift -->
+    <xacro:lift prefix="lift"/>
+
+    <!-- Transmissions must come after joint definitions -->
+    <xacro:add_transmissions/>
+
+    <link name="front_caster">
+        <visual>
+            <geometry>
+                <sphere radius="${caster_radius}"/>
+            </geometry>
+            <material name="Blue">
+                <color rgba="0 0 1.0 1.0"/>
+            </material>
+        </visual>
+
+        <collision>
+            <geometry>
+                <sphere radius="${caster_radius}"/>
+            </geometry>
+        </collision>
+        <xacro:sphere_inertia m="${mass_caster}" r="${caster_radius}" />
+        
+    </link>
+
+
+    <joint name="caster_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="front_caster"/>
+        <origin xyz="${-1*caster_xoff} 0.0 -0.01" rpy="0 0 0"/>
+    </joint>
+    <gazebo reference="front_caster">
+        <mu1>0.1</mu1>
+        <mu2>0.1</mu2>
+    </gazebo>
+    
+    <!-- IMU -->
+    <link name='imu_link'>
+        <visual>
+            <geometry>
+                <box size="0.03 0.03 0.03"/>
+            </geometry>
+            <material name="Black">
+                <color rgba="0 0 0.0 1.0"/>
+            </material>
+        </visual>
+
+        <collision>
+            <geometry>
+                <box size="0.03 0.03 0.03"/>
+            </geometry>
+        </collision>
+
+        <xacro:box_inertia m="0.1" x="0.03" y="0.03" z="0.03"/>
+    </link>
+
+    <joint name='imu_joint' type='fixed'>
+        <parent link='base_link'/>
+        <child link='imu_link'/>
+        <origin xyz="0.0 0.0 ${base_height/2}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- RPLIDAR -->
+    <link name="lidar_link">
+        <visual>
+            <origin xyz="0 0 -0.0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://forklift_description/meshes/ydlidar_x2_assy.dae" scale="1 1 1"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="${lidar_radius}" length="${lidar_length}"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0.007 0 0.025" rpy="0 0 0"/>
+            <mass value="${mass_lidar}"/>
+            <inertia ixx="0.000058" ixy="0" ixz="0.000005" iyy="0.000099" iyz="0" izz="0.000103"/>
+        </inertial>
+    </link>
+
+    <joint name="lidar_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="lidar_link"/>
+        <origin xyz="-0.01 0.0 ${base_height-0.01}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Raspberry Pi Camera V2 -->
+    <link name="camera_link">
+        <visual>
+            <origin xyz="0 0 -0.0" rpy="0 0.0 0"/>
+            <geometry>
+                <mesh filename="package://forklift_description/meshes/front_camera.dae" scale="1 1 1"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0.0 0"/>
+            <geometry>
+                <box size="${camera_width} ${camera_length} ${camera_height}"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0.005 0 0.013" rpy="0 0 0"/>
+            <mass value="${mass_camera}"/>
+            <inertia ixx="0.000005" ixy="0" ixz="-0.000001" iyy="0.000004" iyz="0" izz="0.000003"/>
+        </inertial>
+    </link>
+
+    <joint name="camera_joint" type="fixed">
+        <parent link="lift_link"/>
+        <child link="camera_link"/>
+        <origin xyz="0.01 0 0" rpy="0 0.0 0"/>
+        <!-- <origin xyz="-0.0 0 0" rpy="0 0.0 0"/> -->
+    </joint>
+
+</robot>

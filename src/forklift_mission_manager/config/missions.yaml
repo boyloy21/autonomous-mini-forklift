@@ -1,0 +1,48 @@
+# missions.yaml
+#
+# Named, reusable mission templates -- optional convenience layer. A
+# caller can either send a fully-specified ExecuteMission goal directly,
+# or (once this is wired into forklift_web_bridge) reference one of these
+# by mission_id with a shorter request. Loading this file is non-fatal if
+# missing -- named templates just aren't available.
+
+missions:
+  transport_pick1_to_drop1:
+    type: PALLET_TRANSPORT
+    pick_dock_id: pallet_pick_dock_1
+    drop_dock_id: pallet_drop_dock_1
+    # area poses optional -- omit to skip the coarse-nav step entirely
+    # pick_area_pose: [0.0, 3.0, 0.0]
+    # drop_area_pose: [-1.5, -2.5, 3.14]
+  
+  transport_pick2_to_drop2:
+    type: PALLET_TRANSPORT
+    pick_dock_id: pallet_pick_dock_2
+    drop_dock_id: pallet_drop_dock_2
+
+  transport_pick3_to_drop3:
+    type: PALLET_TRANSPORT
+    pick_dock_id: pallet_pick_dock_3
+    drop_dock_id: pallet_drop_dock_3
+
+  transport_pick4_to_drop4:
+    type: PALLET_TRANSPORT
+    pick_dock_id: pallet_pick_dock_4
+    drop_dock_id: pallet_drop_dock_4
+    
+  morning_charge:
+    type: CHARGING
+    dock_id: charging_dock_1
+
+  patrol_main_aisle:
+    type: PATROL
+    waypoints:
+      - [2.0, 0.0, 0.0]
+      - [2.0, 2.0, 1.5708]
+      - [0.0, 2.0, 3.14159]
+
+  station_1_operation:
+    type: STATION_OPERATION
+    dock_id: station_dock_1
+    station_wait_duration: 8.0
+

@@ -1,0 +1,92 @@
+
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <RecoveryNode number_of_retries="6" name="NavigateRecovery">
+
+      <PipelineSequence name="NavigateWithRouteReplanning">
+
+        <!-- Was 1.0: recomputing the whole route+smooth+final-pose pipeline
+             every second gives the controller a "new" path (SimpleSmoother's
+             iterative refinement is never bit-identical run to run) almost
+             continuously for the whole trip, forcing repeated re-convergence
+             instead of letting it settle. Lowered so it still reacts to a
+             genuinely blocked/updated route, without thrashing the
+             controller on a long multi-turn leg. -->
+        <RateController hz="0.3">
+          <RecoveryNode number_of_retries="1" name="ComputeRoute">
+            <Sequence name="ComputeAndSmoothRoute">
+              <ComputeRoute
+                  goal="{goal}"
+                  use_start="false"
+                  use_poses="true"
+                  path="{route_path}"/>
+              <!-- route_path ends at the route graph's nearest node/edge to
+                   the goal, not necessarily the goal itself. Plan a real
+                   freespace "last mile" segment from there to the literal
+                   goal and append it, so the robot can be sent to any pose
+                   outside the route graph, not just the graph's nodes. -->
+              <GetPoseFromPath
+                  path="{route_path}"
+                  index="-1"
+                  pose="{route_end_pose}"/>
+              <ComputePathToPose
+                  start="{route_end_pose}"
+                  goal="{goal}"
+                  path="{last_mile_path}"
+                  planner_id="GridBased"/>
+              <ConcatenatePaths
+                  input_path1="{route_path}"
+                  input_path2="{last_mile_path}"
+                  output_path="{combined_path}"/>
+              <SmoothPath
+                  unsmoothed_path="{combined_path}"
+                  smoothed_path="{path}"
+                  smoother_id="simple_smoother"/>
+              <!-- The route-graph leg never goes through
+                   planner_server::ComputePathToPose (only the last-mile
+                   segment above does), so the usual /plan topic RViz
+                   watches only ever shows that short last-mile piece.
+                   Republish the full combined path here so the planned
+                   route is visible while the robot is still on the
+                   graph. -->
+              <PublishPath path="{path}" topic="plan"/>
+            </Sequence>
+            <ReactiveFallback name="ComputeRouteRecoveryFallback">
+              <GoalUpdated/>
+              <ClearEntireCostmap name="ClearGlobalCostmap-Context"
+                  service_name="global_costmap/clear_entirely_global_costmap"/>
+            </ReactiveFallback>
+          </RecoveryNode>
+        </RateController>
+
+        <RecoveryNode number_of_retries="1" name="FollowPath">
+          <FollowPath
+              path="{path}"
+              controller_id="FollowPath"/>
+          <ReactiveFallback name="FollowPathRecoveryFallback">
+            <GoalUpdated/>
+            <ClearEntireCostmap name="ClearLocalCostmap-Context"
+                service_name="local_costmap/clear_entirely_local_costmap"/>
+          </ReactiveFallback>
+        </RecoveryNode>
+
+      </PipelineSequence>
+
+      <ReactiveFallback name="RecoveryFallback">
+        <GoalUpdated/>
+        <RoundRobin name="RecoveryActions">
+          <Sequence name="ClearingActions">
+            <ClearEntireCostmap name="ClearLocalCostmap-Subtree"
+                service_name="local_costmap/clear_entirely_local_costmap"/>
+            <ClearEntireCostmap name="ClearGlobalCostmap-Subtree"
+                service_name="global_costmap/clear_entirely_global_costmap"/>
+          </Sequence>
+          <Spin spin_dist="1.57"/>
+          <Wait wait_duration="5"/>
+          <BackUp backup_dist="0.30" backup_speed="0.05"/>
+        </RoundRobin>
+      </ReactiveFallback>
+
+    </RecoveryNode>
+  </BehaviorTree>
+</root>

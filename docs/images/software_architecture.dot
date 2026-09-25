@@ -1,0 +1,77 @@
+digraph software_architecture {
+    rankdir=TB;
+    fontname="Helvetica";
+    bgcolor="white";
+    node [fontname="Helvetica", shape=box, style="filled,rounded", fontsize=13, penwidth=1.3, color="#222222"];
+    edge [fontname="Helvetica", fontsize=10, color="#222222", penwidth=1.2, arrowsize=0.8];
+    ranksep=0.55;
+    nodesep=0.45;
+
+    /* ================= SENSORS ================= */
+    subgraph cluster_sensors {
+        label="SENSORS"; labeljust=l; labelloc=t; fontsize=15; fontname="Helvetica-Bold";
+        style="dashed,rounded"; color="#9e9e9e"; margin=20;
+
+        lidar [label="LiDAR\n(RPLIDAR 2D)", fillcolor="#c8e6c9"];
+        imu   [label="IMU\n(BNO055)",       fillcolor="#c8e6c9"];
+        enc   [label="Wheel Encoders\n(STM32)", fillcolor="#c8e6c9"];
+        cam   [label="Camera\n(RGB)",       fillcolor="#c8e6c9"];
+        tof   [label="ToF Sensor\n(range)", fillcolor="#c8e6c9"];
+        lidar -> imu -> enc -> cam -> tof [style=invis];
+    }
+
+    /* ================= SENSOR FUSION ================= */
+    subgraph cluster_fusion {
+        label="SENSOR FUSION"; labeljust=l; labelloc=t; fontsize=15; fontname="Helvetica-Bold";
+        style="dashed,rounded"; color="#9e9e9e"; margin=20;
+
+        ekf   [label="robot_localization\nEKF (forklift_localization) -> /odom", fillcolor="#ffe0b2"];
+        tf2   [label="robot_state_publisher\nTF2 tree", fillcolor="#ffe0b2"];
+    }
+    imu -> ekf;
+    enc -> ekf;
+    ekf -> tf2;
+
+    /* ================= SLAM TOOLBOX ================= */
+    subgraph cluster_slam {
+        label="SLAM TOOLBOX"; labeljust=l; labelloc=t; fontsize=15; fontname="Helvetica-Bold";
+        style="dashed,rounded"; color="#9e9e9e"; margin=20;
+
+        slam [label="slam_toolbox\n/scan + /odom -> /map + /tf", fillcolor="#fff9c4"];
+    }
+    lidar -> slam;
+    ekf -> slam;
+
+    /* ================= PLANNING & CONTROL ================= */
+    subgraph cluster_plan {
+        label="PLANNING & CONTROL"; labeljust=l; labelloc=t; fontsize=15; fontname="Helvetica-Bold";
+        style="dashed,rounded"; color="#9e9e9e"; margin=20;
+
+        nav2  [label="Nav2 Stack\nforklift_navigation (planner + MPPI/DWB)", fillcolor="#bbdefb"];
+        task  [label="Task Manager\nforklift_task_manager (state machine)", fillcolor="#bbdefb"];
+        lift  [label="Lift Controller\nforklift_controller -> STM32", fillcolor="#ffcdd2"];
+        dock  [label="Docking Server\nforklift_docking (ArUco alignment)", fillcolor="#b2dfdb"];
+        mission [label="Mission Manager\nforklift_mission_manager", fillcolor="#bbdefb"];
+
+        nav2 -> task -> lift -> dock -> mission;
+    }
+    slam -> nav2;
+    tf2 -> nav2;
+    cam -> dock;
+    tof -> mission;
+    dock -> mission [style=dashed, color="#3949ab", constraint=false, dir=both, label="align feedback", fontcolor="#3949ab"];
+
+    /* ================= INTERFACE ================= */
+    subgraph cluster_iface {
+        label="INTERFACE"; labeljust=l; labelloc=t; fontsize=15; fontname="Helvetica-Bold";
+        style="dashed,rounded"; color="#9e9e9e"; margin=20;
+
+        teleop [label="Teleop Node\nkeyboard / joystick", fillcolor="#e0e0e0"];
+        bridge [label="forklift_web_bridge\nrosbridge WebSocket :9090", fillcolor="#d1c4e9"];
+        dash   [label="AIFARM Web Dashboard\nNext.js (Planned)", fillcolor="#d1c4e9"];
+
+        teleop -> bridge [label="/cmd_vel", fontcolor="#555555"];
+        bridge -> dash;
+    }
+    mission -> bridge;
+}

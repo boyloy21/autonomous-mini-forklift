@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="wheel_transmission" params="prefix">
+    <transmission name="${prefix}_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}_joint">
+        <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}_motor">
+        <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+  </xacro:macro>
+
+  <!-- Lift joint is position-controlled (linear actuator / lead screw), not velocity -->
+  <xacro:macro name="lift_transmission" params="prefix">
+    <transmission name="${prefix}_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}_joint">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}_motor">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+  </xacro:macro>
+
+  <!-- Macro to add all transmissions -->
+  <xacro:macro name="add_transmissions">
+    <!-- Left wheel -->
+    <xacro:wheel_transmission prefix="left_wheel"/>
+
+    <!-- Right wheel -->
+    <xacro:wheel_transmission prefix="right_wheel"/>
+
+    <!-- Lift -->
+    <xacro:lift_transmission prefix="lift"/>
+
+    <!-- Add more wheels if needed -->
+  </xacro:macro>
+
+</robot>

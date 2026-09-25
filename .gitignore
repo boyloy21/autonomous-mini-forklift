@@ -1,0 +1,30 @@
+# colcon build artifacts
+build/
+install/
+log/
+
+# Stray CMake output at workspace root
+CMakeFiles/
+CMakeCache.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# tf2 view_frames dumps
+frames_*.gv
+frames_*.pdf
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Secrets (never commit)
+.env
+*.pem
+*.key

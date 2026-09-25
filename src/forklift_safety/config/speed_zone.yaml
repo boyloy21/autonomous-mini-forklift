@@ -1,0 +1,19 @@
+speed_zone_node:
+  ros__parameters:
+    default_max_speed: 0.5
+    zone_names: ["aisle_a", "dock_area", "open_area"]
+    aisle_a.min_x: 0.0
+    aisle_a.max_x: 5.0
+    aisle_a.min_y: 0.0
+    aisle_a.max_y: 2.0
+    aisle_a.max_speed: 0.3
+    dock_area.min_x: 5.0
+    dock_area.max_x: 8.0
+    dock_area.min_y: 0.0
+    dock_area.max_y: 2.0
+    dock_area.max_speed: 0.2
+    open_area.min_x: -10.0
+    open_area.max_x: 0.0
+    open_area.min_y: -10.0
+    open_area.max_y: 10.0
+    open_area.max_speed: 1.0

@@ -1,0 +1,7 @@
+<class_libraries>
+  <library path="traffic_reservation">
+    <class type="forklift_traffic_manager::TrafficReservation" base_class_type="nav2_route::RouteOperation">
+      <description>Arbitrates single-lane route graph edges across the fleet via the traffic_manager node.</description>
+    </class>
+  </library>
+</class_libraries>

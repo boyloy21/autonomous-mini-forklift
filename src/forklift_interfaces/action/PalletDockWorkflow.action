@@ -1,0 +1,21 @@
+# PalletDockWorkflow.action
+#
+# Replaces the /dock_pallet (std_msgs/String) topic trigger with a proper
+# action interface: the dock->lift->undock sequence takes many seconds,
+# so callers need live progress feedback and the ability to cancel --
+# neither of which a topic publish or a blocking service call provides.
+#
+# Goal
+string dock_id
+---
+# Result
+bool success
+string error_code      # "" on success, else e.g. "DOCK_FAILED",
+                        # "LIFT_FAILED", "CANCELED", "ALREADY_RUNNING"
+string message
+---
+# Feedback
+string state            # e.g. "SET_MARKER", "DOCKING", "CHARGING_APPROACH",
+                         # "LIFTING", "UNDOCKING"
+string message           # human-readable detail, e.g. "Approaching pallet"
+float32 progress          # 0-100

@@ -1,0 +1,16 @@
+hardware_monitor_node:
+  ros__parameters:
+    check_rate_hz: 2.0
+    statle_timeout_sec: 3.0
+
+    battery_voltage_warn_low: 22.0
+    battery_voltage_error_low: 20.0
+    battery_current_warn: 25.0
+    battery_current_error: 35.0
+    battery_temp_warn: 45.0
+    battery_temp_error: 60.0
+
+    motor_temp_warn: 60.0
+    motor_temp_error: 80.0
+    motor_current_warn: 8.0
+    motor_current_error: 12.0

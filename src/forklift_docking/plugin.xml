@@ -1,0 +1,14 @@
+<library path="forklift_docking_plugins">
+    <class name="forklift_docking::ChargingDock" type="forklift_docking::ChargingDock" base_class_type="forklift_docking::DockPlugin">
+        <description>Dock at a charging station: navigate, align, touch charger, detect contact, monitor charging.</description>
+    </class>
+    <class name="forklift_docking::StationDock" type="forklift_docking::SatationDock" base_class_type="forklift_docking::DockPlugin">
+        <description>Dock at a production/inspection/waiting station gated by PLC readiness.</description>
+    </class>
+    <class name="forklift_docking::PalletPickDock" type="forklift_docking::PalletPickDock" base_class_type="forklift_docking::DockPlugin">
+        <description>Aligns with and pick up a pallet: lower fork, insert, lift, verify load.</description>
+    </class>
+    <class name="forklift_docking::PalletDropDock" type="forklift_docking::PalletDropDock" base_class_type="forklift_docking::DockPlugin">
+        <description>Aligns with a rack/drop location and places a pallet: lowe, release, reverse.</description>
+    </class>
+</library>

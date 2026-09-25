@@ -1,0 +1,8 @@
+# ClearQueue.srv
+#
+# Removes all PENDING (not-yet-started) tasks from the queue. Does NOT
+# affect the currently executing task -- use the ExecuteTask action's own
+# cancel for that.
+---
+bool success
+int32 tasks_cleared

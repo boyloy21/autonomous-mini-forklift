@@ -1,0 +1,138 @@
+
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <RecoveryNode number_of_retries="6" name="NavigateRecovery">
+
+      <PipelineSequence name="NavigateWithRouteReplanning">
+
+        <!-- Modeled on the official Nav2 "navigate_on_route_graph_w_recovery"
+             tree (docs.nav2.org, jazzy): only recompute the route when it is
+             actually needed, i.e. the goal was preempted/updated, or the
+             route most recently computed is no longer valid (e.g. an edge
+             is now blocked in the costmap), instead of unconditionally
+             recomputing on a fixed timer. The official tree's last-mile
+             connector (GetCurrentPose/ArePosesNear/ConcatenatePaths) and
+             error_code_id-gated recovery (WouldA*RecoveryHelp) aren't fully
+             available on this Humble build of nav2_route (checked: not
+             present under /opt/ros/humble/lib), so this tree uses the
+             GetPoseFromPath + ComputePathToPose + ConcatenatePaths
+             combination below for the last-mile segment instead. -->
+        <RecoveryNode number_of_retries="3" name="ComputeRoute">
+          <RateController hz="0.5" name="ComputeRouteRateController">
+            <Fallback name="RecomputeRouteIfNeeded">
+              <ReactiveSequence>
+                <Inverter>
+                  <GlobalUpdatedGoal/>
+                </Inverter>
+                <IsPathValid path="{path}"/>
+              </ReactiveSequence>
+              <Sequence name="ComputeAndSmoothRoute">
+                <ComputeRoute
+                    goal="{goal}"
+                    use_start="false"
+                    use_poses="true"
+                    path="{route_path}"
+                    route="{route}"/>
+                <!-- route_path ends at the route graph's nearest node/edge
+                     to the goal, not necessarily the goal itself. Plan a
+                     real freespace "last mile" segment from there to the
+                     literal goal and append it, so the robot can be sent to
+                     any pose outside the route graph, not just the graph's
+                     nodes. -->
+                <GetPoseFromPath
+                    path="{route_path}"
+                    index="-1"
+                    pose="{route_end_pose}"/>
+                <ComputePathToPose
+                    start="{route_end_pose}"
+                    goal="{goal}"
+                    path="{last_mile_path}"
+                    planner_id="GridBased"/>
+                <ConcatenatePaths
+                    input_path1="{route_path}"
+                    input_path2="{last_mile_path}"
+                    output_path="{combined_path}"/>
+                <SmoothPath
+                    unsmoothed_path="{combined_path}"
+                    smoothed_path="{path}"
+                    smoother_id="simple_smoother"/>
+                <!-- The route-graph leg never goes through
+                     planner_server::ComputePathToPose (only the last-mile
+                     segment above does), so the usual /plan topic RViz
+                     watches only ever shows that short last-mile piece.
+                     Republish the full combined path here so the planned
+                     route is visible while the robot is still on the
+                     graph. -->
+                <PublishPath path="{path}" topic="plan"/>
+              </Sequence>
+            </Fallback>
+          </RateController>
+          <!-- ComputeRoute/SmoothPath can come back with an unusable route
+               (e.g. the goal snaps onto an already-reached node, giving 0
+               edges and an empty dense path) as well as an outright failure
+               (blocked edge, service timeout). Clearing both costmaps
+               before the next of the 3 retries gives route_server and its
+               costmap-based nearest-node search a fresh view instead of
+               retrying against the same stale obstacle data that produced
+               the bad route. -->
+          <ReactiveFallback name="ComputeRouteRecoveryFallback">
+            <GoalUpdated/>
+            <Sequence name="ClearCostmapsAndRetryRoute">
+              <ClearEntireCostmap name="ClearGlobalCostmap-Context"
+                  service_name="global_costmap/clear_entirely_global_costmap"/>
+              <ClearEntireCostmap name="ClearLocalCostmap-ForRoute"
+                  service_name="local_costmap/clear_entirely_local_costmap"/>
+            </Sequence>
+          </ReactiveFallback>
+        </RecoveryNode>
+
+        <RecoveryNode number_of_retries="3" name="FollowPath">
+          <ReactiveSequence name="FollowPathWithTrackingCheck">
+            <!-- If the controller reports the robot as stuck (not making
+                 progress along the path, e.g. it has drifted off the
+                 route or is blocked and can't track it), fail this tick
+                 immediately instead of waiting out the full
+                 progress_checker timeout (movement_time_allowance).
+                 Failing here fails the RecoveryNode/PipelineSequence early
+                 so the outer NavigateRecovery runs a recovery action and
+                 ComputeRoute is retried fresh on the next pass, rather than
+                 continuing to track a route the robot has lost. -->
+            <Inverter>
+              <IsStuck/>
+            </Inverter>
+            <FollowPath
+                path="{path}"
+                controller_id="FollowPath"
+                goal_checker_id="general_goal_checker"/>
+          </ReactiveSequence>
+          <ReactiveFallback name="FollowPathRecoveryFallback">
+            <GoalUpdated/>
+            <Sequence name="ClearCostmapsAndRetryFollow">
+              <ClearEntireCostmap name="ClearLocalCostmap-Context"
+                  service_name="local_costmap/clear_entirely_local_costmap"/>
+              <ClearEntireCostmap name="ClearGlobalCostmap-ForFollow"
+                  service_name="global_costmap/clear_entirely_global_costmap"/>
+            </Sequence>
+          </ReactiveFallback>
+        </RecoveryNode>
+
+      </PipelineSequence>
+
+      <ReactiveFallback name="RecoveryFallback">
+        <GoalUpdated/>
+        <RoundRobin name="RecoveryActions">
+          <Sequence name="ClearingActions">
+            <ClearEntireCostmap name="ClearLocalCostmap-Subtree"
+                service_name="local_costmap/clear_entirely_local_costmap"/>
+            <ClearEntireCostmap name="ClearGlobalCostmap-Subtree"
+                service_name="global_costmap/clear_entirely_global_costmap"/>
+          </Sequence>
+          <Spin spin_dist="1.57"/>
+          <Wait wait_duration="5"/>
+          <BackUp backup_dist="0.30" backup_speed="0.05"/>
+        </RoundRobin>
+      </ReactiveFallback>
+
+    </RecoveryNode>
+  </BehaviorTree>
+</root>

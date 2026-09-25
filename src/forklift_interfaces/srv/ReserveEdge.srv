@@ -1,0 +1,7 @@
+# Requests exclusive use of a contested route-graph edge from the fleet-wide
+# traffic_manager node, or releases a previously granted one.
+string robot_name       # namespace of the requesting robot, e.g. "forklift1"
+uint16 edge_id          # route graph edge id (DirectionalEdge::edgeid)
+bool acquire            # true = claim the edge, false = release it
+---
+bool granted             # true if the claim/release succeeded

@@ -1,0 +1,266 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Gazebo Fortress (Ignition) plugins for Nav2 -->
+  <xacro:macro name="gz_plugins" params="prefix">
+    <!-- Sensor Systems -->
+    <gazebo>
+        <!-- <plugin filename="libignition-gazebo-sensors-system.so"
+                name="ignition::gazebo::systems::Sensors">
+            <render_engine>ogre2</render_engine>
+        </plugin> -->
+
+        <!-- <plugin filename="libignition-gazebo-imu-system.so"
+                name="ignition::gazebo::systems::Imu">
+        </plugin> -->
+
+        <!-- <plugin
+            filename="libignition-gazebo-scene-broadcaster-system.so"
+            name="ignition::gazebo::systems::SceneBroadcaster">
+        </plugin> -->
+
+        <plugin filename="libignition-gazebo-joint-state-publisher-system.so"
+              name="ignition::gazebo::systems::JointStatePublisher">
+            <joint_name>left_wheel_joint</joint_name>
+            <joint_name>right_wheel_joint</joint_name>
+            <joint_name>lift_joint</joint_name>
+            <topic_name>${prefix}/joint_states</topic_name>  
+            <update_rate>50</update_rate>  
+        </plugin>
+
+        <!-- Loads the ros2_control hardware defined in ros2_control.xacro.
+             This was missing before; without it, the controller_manager
+             never spawns inside Ignition. Point <parameters> at your
+             actual controllers.yaml. -->
+        <!-- <plugin filename="libign_ros2_control-system.so"
+                name="ign_ros2_control::IgnitionROS2ControlPlugin">
+            <parameters>$(find forklift_gazebo)/config/forklift_controllers.yaml</parameters>
+            <ros>
+              <namespace>${prefix}</namespace>
+            </ros>
+        </plugin> -->
+
+    </gazebo>
+
+
+    <!-- Differential Drive Controller -->
+    <gazebo>
+      <plugin filename="libignition-gazebo-diff-drive-system.so"
+              name="ignition::gazebo::systems::DiffDrive">
+        <!-- Wheel Configuration -->
+        <left_joint>left_wheel_joint</left_joint>
+        <right_joint>right_wheel_joint</right_joint>
+        <wheel_separation>${wheel_separation}</wheel_separation>
+        <wheel_radius>${wheel_radius+0.01}</wheel_radius>
+        <update_rate>50</update_rate>
+
+        <!-- Performance Limits -->
+        <max_wheel_acceleration>1.0</max_wheel_acceleration>
+        <max_wheel_torque>40</max_wheel_torque>
+
+        <!-- Odometry settings -->
+        <odom_publish_frequency>50</odom_publish_frequency>
+        <publish_odom>true</publish_odom>
+        <publish_odom_tf>false</publish_odom_tf>
+        <publish_wheel_tf>true</publish_wheel_tf>
+
+        <!-- Topic Configuration -->
+        <topic>${prefix}/cmd_vel</topic>
+        <odom_frame_id>${prefix + '/odom' if prefix else 'odom'}</odom_frame_id>
+        <robot_base_frame_id>${prefix + '/base_footprint' if prefix else 'base_footprint'}</robot_base_frame_id>
+        <xacro:if value="${odometry_source == 'encoders'}">
+            <odom_topic>$(arg wheel_odom_topic)</odom_topic>
+            <tf_topic>/tf</tf_topic>
+        </xacro:if>
+        <frame_id>${prefix + '/odom' if prefix else 'odom'}</frame_id>
+        <child_frame_id>${prefix + '/base_footprint' if prefix else 'base_footprint'}</child_frame_id>
+      </plugin>
+    </gazebo>
+    
+    <gazebo>
+      <plugin filename="libignition-gazebo-joint-position-controller-system.so"
+              name="ignition::gazebo::systems::JointPositionController">
+        <joint_name>lift_joint</joint_name>
+        <p_gain>1000.0</p_gain>
+        <i_gain>0.2</i_gain>
+        <d_gain>0.01</d_gain>
+        <i_max>20</i_max>
+        <i_min>-20</i_min>
+        <cmd_max>1500</cmd_max>
+        <cmd_min>-1500</cmd_min>
+        <topic>${prefix}/lift_cmd</topic>
+      </plugin>
+    </gazebo>
+
+
+    <!-- ............................. ground truth .................................... -->
+
+    <xacro:if value="${odometry_source == 'world'}">
+      <gazebo>
+          <!-- NOTE: original filename was missing the .so extension, which
+               would fail to load. Fixed here. -->
+          <plugin filename="libignition-gazebo-odometry-publisher-system.so"
+              name="ignition::gazebo::systems::OdometryPublisher">
+              <odom_frame>${prefix + '/odom' if prefix else 'odom'}</odom_frame>
+              <robot_base_frame>${prefix + '/base_footprint' if prefix else 'base_footprint'}</robot_base_frame>
+              <odom_topic>$(arg wheel_odom_topic)</odom_topic>
+              <tf_topic>/tf</tf_topic>
+              <dimensions>2</dimensions>
+              <odom_publish_frequency>50</odom_publish_frequency>
+          </plugin>
+      </gazebo>
+    </xacro:if>
+
+    <!-- IMU Sensor -->
+    <gazebo reference="imu_link">
+      <sensor name="imu_sensor" type="imu">
+        <always_on>true</always_on>
+        <update_rate>100</update_rate>
+        <visualize>true</visualize>
+        <topic>${prefix}/imu</topic>
+        <ignition_frame_id>${prefix + '/imu_link' if prefix else 'imu_link'}</ignition_frame_id>
+        <imu>
+          <angular_velocity>
+            <x>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+                <bias_mean>0.0000075</bias_mean>
+                <bias_stddev>0.0000008</bias_stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+                <bias_mean>0.0000075</bias_mean>
+                <bias_stddev>0.0000008</bias_stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+                <bias_mean>0.0000075</bias_mean>
+                <bias_stddev>0.0000008</bias_stddev>
+              </noise>
+            </z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+                <bias_mean>0.1</bias_mean>
+                <bias_stddev>0.001</bias_stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+                <bias_mean>0.1</bias_mean>
+                <bias_stddev>0.001</bias_stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+                <bias_mean>0.1</bias_mean>
+                <bias_stddev>0.001</bias_stddev>
+              </noise>
+            </z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+    </gazebo>
+
+    <!-- LIDAR Sensor -->
+    <!-- NOTE: reference must match the actual link name in robot.xacro
+         (ydlidar_lidar_mount), not the generic "lidar_link" from before. -->
+    <gazebo reference="${lidar_frame_id}">
+      <sensor name="lidar" type="gpu_lidar">
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+        <update_rate>${two_d_lidar_update_rate}</update_rate>
+        <topic>${prefix}/scan</topic>
+        <!-- NOTE: was hardcoded to the literal string "lidar_frame_id" before.
+             Now correctly references the const.xacro property. -->
+        <ignition_frame_id>${prefix + '/' + lidar_frame_id if prefix else lidar_frame_id}</ignition_frame_id>
+        <lidar>
+          <scan>
+            <horizontal>
+              <samples>360</samples>
+              <resolution>1</resolution>
+              <!-- NOTE: was referencing undefined properties lidarFR_min_angle /
+                   lidarFR_max_angle before. Fixed to the properties that
+                   actually exist in const.xacro (lidar_min_angle / lidar_max_angle). -->
+              <min_angle>${radians(lidar_min_angle)}</min_angle>
+              <max_angle>${radians(lidar_max_angle)}</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <min>${two_d_lidar_min_range}</min>
+            <max>${two_d_lidar_max_range}</max>
+            <resolution>0.015000</resolution>
+          </range>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </lidar>
+      </sensor>
+    </gazebo>
+
+    <!-- CAMERA -->
+    <!-- NOTE: reference must match the actual link name in robot.xacro
+         (front_camera_mount), not the generic "camera_link" from before. -->
+    <gazebo reference="${camera_frame_id}">
+      <sensor name="camera" type="rgbd_camera">
+          <always_on>true</always_on>
+          <visualize>true</visualize>
+          <update_rate>30.0</update_rate>
+          <topic>${prefix}/camera</topic>
+          <ignition_frame_id>${prefix + '/' + camera_frame_id if prefix else camera_frame_id}</ignition_frame_id>
+          <camera_info_topic>${prefix}/camera_info</camera_info_topic>
+          <camera name="camera">
+              <pose>0 0 0 0 0.0 0</pose>
+              <horizontal_fov>1.08</horizontal_fov>
+              <image>
+                  <width>640</width>
+                  <height>480</height>
+                  <format>R8G8B8</format>
+              </image>
+              <clip>
+                  <near>0.05</near>
+                  <far>5</far>
+              </clip>
+              <noise>
+                  <type>gaussian</type>
+                  <mean>0.0</mean>
+                  <stddev>0.01</stddev>
+              </noise>
+              <baseline>0.2</baseline>
+              <pointCloudCutoff>0.5</pointCloudCutoff>
+              <pointCloudCutoffMax>3.0</pointCloudCutoffMax>
+              <distortionK1>0</distortionK1>
+              <distortionK2>0</distortionK2>
+              <distortionK3>0</distortionK3>
+              <distortionT1>0</distortionT1>
+              <distortionT2>0</distortionT2>
+              <CxPrime>0</CxPrime>
+              <Cx>0</Cx>
+              <Cy>0</Cy>
+              <focalLength>0</focalLength>
+              <hackBaseline>0</hackBaseline>
+          </camera>
+          
+      </sensor>
+    </gazebo>
+
+
+  </xacro:macro>
+
+</robot>

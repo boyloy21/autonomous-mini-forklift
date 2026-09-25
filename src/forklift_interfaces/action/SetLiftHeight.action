@@ -1,0 +1,14 @@
+# SetLiftHeight.action
+#
+# Goal
+float32 target_height     # meters
+float32 speed              # m/s, 0 = use default
+---
+# Result
+bool success
+string message
+float32 current_height
+---
+# Feedback
+float32 current_height
+float32 target_height

@@ -1,0 +1,19 @@
+sensor_monitor_node:
+  ros__parameters:
+    check_rate_hz: 2.0
+    enable_gps: false
+
+    lidar_timeout_sec: 1.0
+    lidar_expected_hz: 10.0
+    camera_timeout_sec: 2.0
+    camera_expected_hz: 15.0
+    depth_camera_timeout_sec: 2.0
+    depth_camera_expected_hz: 15.0
+    imu_timeout_sec: 0.5
+    imu_expected_hz: 50.0
+    ultrasonic_timeout_sec: 1.0
+    ultrasonic_expected_hz: 10.0
+    bumper_timeout_sec: 0.5
+    encoder_timeout_sec: 0.5
+    encoder_expected_hz: 20.0
+    gps_timeout_sec: 2.0

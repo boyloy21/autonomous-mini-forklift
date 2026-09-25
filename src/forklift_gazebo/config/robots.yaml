@@ -1,0 +1,41 @@
+# Fleet configuration for multi-robot forklift simulation.
+#
+# Each entry under "robots" defines one robot to spawn: its unique name
+# (used for ROS namespace, Gazebo entity name, and TF frame prefix) and its
+# initial spawn pose in the world.
+#
+# To add/remove robots, just add/remove entries here - no launch file edits
+# needed. Loaded by multi_forklift_param_launch.py via the "robots_file"
+# launch argument (defaults to this file's install path).
+
+robots:
+  - name: forklift1
+    x_pose: -1.5
+    y_pose: -0.5
+    z_pose: 0.01
+
+  # - name: forklift2
+  #   x_pose: 0.0
+  #   y_pose: 0.0
+  #   z_pose: 0.01
+
+  # - name: forklift3
+  #   x_pose: 1.5
+  #   y_pose: 0.0
+  #   z_pose: 0.01
+
+  # - name: forklift4
+  #   x_pose: 1.5
+  #   y_pose: -1.5
+  #   z_pose: 0.01
+
+  # - name: forklift5
+  #   x_pose: 0.0
+  #   y_pose: -1.5
+  #   z_pose: 0.01
+
+  # Add more robots here, e.g.:
+  # - name: forklift6
+  #   x_pose: -1.5
+  #   y_pose: 1.5
+  #   z_pose: 0.01

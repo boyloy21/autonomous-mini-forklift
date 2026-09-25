@@ -1,0 +1,45 @@
+# ExecuteMission.action
+#
+# Goal fields relevant per mission_type:
+#   PALLET_TRANSPORT   -> pick_area_pose (optional), pick_dock_id,
+#                          drop_area_pose (optional), drop_dock_id
+#                          (area poses are OPTIONAL: if a pose's
+#                          header.frame_id is left empty, the coarse
+#                          SINGLE_NAVIGATION step before that dock is
+#                          skipped entirely -- PICK_PALLET_DOCK/
+#                          DROP_PALLET_DOCK already navigate to their own
+#                          precise staging pose internally, so the area
+#                          pose is only useful when you want an
+#                          additional, coarser waypoint before that,
+#                          e.g. to route through a specific aisle.)
+#   PATROL             -> waypoints[] (passed straight through to a
+#                          single PATROL_POINT task -- task_manager
+#                          already handles multi-waypoint iteration,
+#                          not duplicated here)
+#   CHARGING           -> dock_id
+#   STATION_OPERATION  -> dock_id, station_wait_duration
+#
+# Goal
+string mission_id
+string mission_type
+geometry_msgs/PoseStamped pick_area_pose
+string pick_dock_id
+geometry_msgs/PoseStamped drop_area_pose
+string drop_dock_id
+geometry_msgs/PoseStamped[] waypoints
+string dock_id
+float32 station_wait_duration
+---
+# Result
+bool success
+string message
+string failed_task
+---
+# Feedback
+string mission_id
+string current_task
+int32 current_task_index
+int32 total_tasks
+float32 progress
+string state
+string message

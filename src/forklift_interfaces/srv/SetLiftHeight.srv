@@ -1,0 +1,10 @@
+# forklift_interfaces/srv/SetLiftHeight.srv
+# Used by lift_client_node for /lift_up, /lift_down, /set_height
+# (lift_up / lift_down are just convenience calls with preset heights)
+
+float32 target_height     # meters
+float32 speed              # m/s, 0 = use default
+---
+bool success
+string message
+float32 current_height

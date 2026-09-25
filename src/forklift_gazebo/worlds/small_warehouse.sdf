@@ -1,0 +1,356 @@
+<?xml version='1.0' ?>
+<sdf version="1.7">
+  <world name='ware_house'>
+    <gravity>0 0 -9.8</gravity>
+    <physics name='1ms' type='ignored'>
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+    <!-- <plugin filename="libignition-gazebo-clock-system.so"
+            name="ignition::gazebo::systems::Clock">
+        <use_sim_time>true</use_sim_time>
+        <time_scaling_factor>1.0</time_scaling_factor>
+    </plugin> -->
+    
+    <plugin filename="libignition-gazebo-contact-system.so"
+        name="ignition::gazebo::systems::Contact">
+    </plugin>
+
+    <plugin
+        filename="libignition-gazebo-physics-system.so"
+        name="ignition::gazebo::systems::Physics">
+    </plugin>
+    <plugin
+        filename="libignition-gazebo-user-commands-system.so"
+        name="ignition::gazebo::systems::UserCommands">
+    </plugin>
+    <plugin
+        filename="libignition-gazebo-scene-broadcaster-system.so"
+        name="ignition::gazebo::systems::SceneBroadcaster">
+    </plugin>
+    <plugin
+      filename="libignition-gazebo-sensors-system.so"
+      name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="libignition-gazebo-imu-system.so"
+      name="ignition::gazebo::systems::Imu">
+    </plugin>
+    
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/charger_station/model.sdf</uri>
+        <name>ChargerStation1</name>
+        <pose>-2.5 -0.5 0.0 0 0 1.57</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/charger_station/model.sdf</uri>
+        <name>ChargerStation2</name>
+        <pose>-2.5 -1.5 0.0 0 0 1.57</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/charger_station/model.sdf</uri>
+        <name>ChargerStation3</name>
+        <pose>-2.5 -2.5 0.0 0 0 1.57</pose>
+    </include>
+    <!-- Mini Pallet stacks (120x100x14mm each) -->
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/pallet_box_mobile/model.sdf</uri>
+        <name>pallet1</name>
+        <pose>1.5 9.0 0.05 0 0 1.5708</pose>
+    </include>
+    
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/pallet_box_mobile2/model.sdf</uri>
+        <name>pallet2</name>
+        <pose>0.8 7.5 0.05 0 0 1.5708</pose>
+    </include>
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/pallet_box_mobile3/model.sdf</uri>
+        <name>pallet3</name>
+        <pose>0.1 7.5 0.05 0 0 1.5708</pose>
+    </include>
+    
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/pallet_box_mobile4/model.sdf</uri>
+        <name>pallet4</name>
+        <pose>-0.1 5.5 0.05 0 0 0.0</pose>
+    </include>
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/pallet_box_mobile/model.sdf</uri>
+        <name>pallet5</name>
+        <pose>-0.1 1.4 0.05 0 0 0.0</pose>
+    </include>
+    
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/pallet_box_mobile2/model.sdf</uri>
+        <name>pallet6</name>
+        <pose>-0.1 2.4 0.05 0 0 0.0</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/pallet_box_mobile3/model.sdf</uri>
+        <name>pallet7</name>
+        <pose>-0.1 3.4 0.05 0 0 0.0</pose>
+    </include>
+    
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/pallet_box_mobile4/model.sdf</uri>
+        <name>pallet8</name>
+        <pose>-0.1 4.4 0.05 0 0 0.0</pose>
+    </include>
+
+    <!-- <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/pallet_box_mobile/model.sdf</uri>
+        <name>pallet9</name>
+        <pose>-1.0 0.55 0.05 0 0 1.5708</pose>
+    </include>
+    
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/pallet_box_mobile2/model.sdf</uri>
+        <name>pallet10</name>
+        <pose>-2.0 0.55 0.05 0 0 1.5708</pose>
+    </include> -->
+
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_RoofB_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_RoofB_01_001</name>
+        <pose>0.0 0.0 0 0 0 0</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ShelfF_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ShelfF_01_001</name>
+        <pose>-5.795143 -0.956635 0 0 0 0</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_WallB_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_WallB_01_001</name>
+        <pose>0.0 0.0 0 0 0 0</pose>
+    </include>
+
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ShelfE_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ShelfE_01_001</name>
+        <pose>4.73156 0.57943 0 0 0 0</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ShelfE_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ShelfE_01_002</name>
+        <pose>4.73156 -4.827049 0 0 0 0</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ShelfE_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ShelfE_01_003</name>
+        <pose>4.73156 -8.6651 0 0 0 0</pose>
+    </include>
+    
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ShelfD_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ShelfD_01_001</name>  
+        <pose>4.73156 -1.242668 0 0 0 0</pose>                                             
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ShelfD_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ShelfD_01_002</name>
+        <pose>4.73156 -3.038551 0 0 0 0</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ShelfD_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ShelfD_01_003</name>
+        <pose>4.73156 -6.750542 0 0 0 0</pose>
+    </include>
+
+
+        <!--model name="aws_robomaker_warehouse_DeskC_01_001">
+        <include>
+            <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_DeskC_01</uri>
+        </include>
+        <pose frame="">-0.061684 6.135864 0 0 0 0</pose>
+	</model>
+
+        <model name="aws_robomaker_warehouse_DeskC_01_002">
+        <include>
+            <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_DeskC_01</uri>
+        </include>
+        <pose frame="">-0.061684 3.039 0 0 0 0</pose>
+	</model>
+
+        <model name="aws_robomaker_warehouse_DeskC_01_003">
+        <include>
+            <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_DeskC_01</uri>
+        </include>
+        <pose frame="">-0.061684 -6.6493 0 0 0 0</pose>
+	</model-->
+
+        
+       
+    
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_GroundB_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_GroundB_01_001</name>
+        <pose>0.0 0.0 -0.090092 0 0 0</pose>
+    </include>
+       
+	
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_Lamp_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_Lamp_01_006</name>
+        <pose>0 0 -4 0 0 0</pose>
+    </include>
+
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_Bucket_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_Bucket_01_020</name>
+        <pose>0.433449 9.631706 0 0 0 -1.563161</pose>
+    </include>
+
+	
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_Bucket_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_Bucket_01_021</name>
+        <pose>-1.8321 -6.3752 0 0 0 -1.563161</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_Bucket_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_Bucket_01_022</name>
+        <pose>0.433449 8.59 0 0 0 -1.563161</pose>
+    </include>
+
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ClutteringA_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ClutteringA_01_016</name>
+        <pose>5.708138 8.616844 -0.017477 0 0 0</pose>
+    </include>
+    
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ClutteringA_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ClutteringA_01_017</name>
+        <pose>3.408638 8.616844 -0.017477 0 0 0</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ClutteringA_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ClutteringA_01_018</name>
+        <pose>-1.491287 5.222435 -0.017477 0 0 -1.583185</pose>
+    </include>
+    
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ClutteringC_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ClutteringC_01_027</name>
+        <pose>3.324959 3.822449 -0.012064 0 0 1.563871</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ClutteringC_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ClutteringC_01_028</name>
+        
+        <pose>5.54171 3.816475 -0.015663 0 0 -1.583191</pose>
+    </include>
+    
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ClutteringC_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ClutteringC_01_029</name>
+        <pose>5.384239 6.137154 0 0 0 3.150000</pose>
+    </include>
+    
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ClutteringC_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ClutteringC_01_030</name>
+        <pose>3.236 6.137154 0 0 0 3.150000</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ClutteringC_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ClutteringC_01_031</name>
+        <pose>-1.573677 2.301994 -0.015663 0 0 -3.133191</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ClutteringC_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ClutteringC_01_032</name>
+        <pose>-1.2196 9.407 -0.015663 0 0 1.563871</pose>
+    </include>
+    
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_ClutteringD_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_ClutteringD_01_005</name>
+        <pose>-1.634682 -7.811813 -0.319559 0 0 0</pose>
+    </include>
+
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_TrashCanC_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_TrashCanC_01_002</name>
+        <pose>-1.592441 7.715420 0 0 0 0</pose>
+    </include>
+
+      
+    <include>
+        <uri>file:///home/yunboyloy/miniforklift_ws/install/forklift_gazebo/share/forklift_gazebo/models/aws_robomaker_warehouse_PalletJackB_01/model.sdf</uri>
+        <name>aws_robomaker_warehouse_PalletJackB_01</name>
+        <pose>-0.276098 -9.481944 0.023266 0 0 0</pose>
+    </include>
+        
+
+    <light name="Warehouse_CeilingLight_003" type="point">
+      <pose>0 0 9 0 0 0</pose>
+      <diffuse>0.5 0.5 0.5 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>80</range>
+        <constant>0.3</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <cast_shadows>1</cast_shadows>
+      <direction>0.1 0.1 -1</direction>
+    </light>
+
+    
+    <!-- <plugin filename="libignition-gazebo-touchplugin-system.so"
+        name="ignition::gazebo::systems::TouchPlugin">
+        <target>forklift</target>
+        <namespace>battery_charger_station</namespace>
+        <time>0.001</time>
+        <enabled>true</enabled>
+    </plugin> -->
+    <!-- <light name='sun' type='directional'>
+      <pose>0 0 10 0 -0 0</pose>
+      <cast_shadows>true</cast_shadows>
+      <intensity>1</intensity>
+      <direction>-0.5 0.1 -0.9</direction>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <linear>0.01</linear>
+        <constant>0.90000000000000002</constant>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <spot>
+        <inner_angle>0</inner_angle>
+        <outer_angle>0</outer_angle>
+        <falloff>0</falloff>
+      </spot>
+    </light> -->
+
+
+  </world>
+</sdf>

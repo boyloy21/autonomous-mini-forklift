@@ -1,0 +1,28 @@
+/aruco_node:
+  ros__parameters:
+    # Aruco detection parameters
+    marker_size: 0.04         # meters -- matches aruco_marker_0's 0.20m plaque
+    aruco_dictionary_id: DICT_4X4_100
+    # Input topics -- all RELATIVE (no leading "/"). This file had
+    # drifted back to absolute paths since the multi-robot fix applied a
+    # few turns ago -- reapplied here. Absolute topic-name PARAMETER
+    # VALUES bypass namespacing entirely, even when the launch file
+    # itself correctly applies Node(namespace=...) -- same rule behind
+    # most of the bugs found this session.
+    image_topic: camera/image_raw
+    use_depth_input: false
+    depth_image_topic: camera/depth_image
+    camera_info_topic: camera/camera_info
+    camera_frame: camera_link    # stays BARE -- frame names aren't
+                                  # namespaced in this project's TF
+                                  # strategy; isolation comes from the
+                                  # /tf -> tf remap in the launch file,
+                                  # not prefixed frame names. Falls back
+                                  # to camera_info's frame_id if empty.
+    # Output topics -- also relative
+    detected_markers_topic: camera/aruco/markers   # geometry_msgs/PoseArray
+    annotated_image_topic: camera/aruco/image      # sensor_msgs/Image (debug overlay)
+    markers_visualization_topic: aruco/poses
+    output_image_topic: aruco/image_raw
+    dock_pose_topic: aruco_dock_pose
+    publish_tf: true

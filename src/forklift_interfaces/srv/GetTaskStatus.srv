@@ -1,0 +1,9 @@
+# GetTaskStatus.srv
+---
+bool has_current_task
+string current_task_id
+string current_task_type
+string current_state
+int32 current_step_index
+int32 total_steps
+int32 queue_length

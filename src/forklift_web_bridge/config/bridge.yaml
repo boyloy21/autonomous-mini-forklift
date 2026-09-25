@@ -1,0 +1,30 @@
+bridge_manager_node:
+  ros__parameters:
+    heartbeat_rate_hz: 1.0
+    watched_nodes:
+      - "robot_state_node"
+      - "navigation_bridge_node"
+      - "mission_bridge_node"
+      - "diagnostics_bridge_node"
+      - "mqtt_bridge_node"
+      - "fastapi_bridge_node"
+    enable_mqtt: true
+    enable_rest_api: true
+    enable_rosbridge: true
+
+robot_state_node:
+  ros__parameters:
+    publish_rate_hz: 2.0
+
+navigation_bridge_node:
+  ros__parameters:
+    navigation_request_topic: "/execute_navigation"  # mathce forklift_task_manager's navigation_client_node
+    navigation_result_topic: "/navigation/result"
+    navigation_status_topic: "/navigation/status"
+
+mission_bridge_node:
+  ros__parameters: {}
+
+diagnostics_bridge_node:
+  ros__parameters:
+    publish_rate_hz: 1.0

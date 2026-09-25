@@ -1,0 +1,52 @@
+# "/**/" so this also matches the namespaced node (/forklift1/task_manager_node).
+# A bare "task_manager_node:" only matches an UNnamespaced node, so in the
+# multi-robot bringup every value below was silently ignored.
+/**/task_manager_node:
+  ros__parameters:
+    use_sim_time: true
+
+    dock_database: "dock_database.yaml"  # overridden with absolute path by launch file
+    # Was -0.7: with pallet_drop_dock_1 at x=-2.0, that staged the robot at
+    # x=-1.3 -- confirmed (via RViz screenshot + live costmap) too close to
+    # a real wall/rack near there that isn't reflected clearly in the
+    # static map, so the general-purpose nav controller couldn't complete
+    # the final approach. Widened so NAVIGATE stops further back (x=-0.8
+    # for that dock), leaving the last stretch to DOCK's opennav_docking
+    # approach controller, which is built for slow, close-quarters final
+    # positioning near obstacles/targets -- unlike the general controller
+    # used for the long-haul NAVIGATE leg. Also gives pick docks more
+    # standoff room, which should be harmless (ArUco-guided DOCK step
+    # already corrects the final approach there).
+    staging_x_offset: -1.2
+    staging_yaw_offset: 0.0
+    status_publish_rate_hz: 2.0
+
+    navigate_action_name: "navigate_to_pose"
+    dock_action_name: "dock_robot"
+    undock_action_name: "undock_robot"
+    lift_action_name: "set_height"
+    aruco_node_name: "aruco_node"
+
+    # CHARGING_DOCK's MONITOR_CHARGING step
+    battery_topic: "battery_state"     # relative: per-robot under its namespace
+    charging_current_threshold: 0.5     # amps -- current above this = "charging"
+    charging_monitor_timeout: 300.0     # seconds for charging to START
+    charging_full_percentage: 1.0       # 0-1, battery level that ends charging
+    charging_full_timeout: 1800.0       # seconds from start of charging to full
+
+    # CHARGING_DOCK's CHARGE_APPROACH step (rear contact, see
+    # forklift_docking/rear_charging_maneuver.hpp). After DOCK the robot
+    # faces the charger: back off, turn pi, reverse until pad contact.
+    charging_pre_rotate_backoff: 0.25   # m, clearance for the in-place turn (forks sweep ~0.36 m)
+    charging_rotate_angle: 3.2      # rad
+    charging_backup_distance: 0.8       # m, max reverse; stops on contact/stall
+    charging_release_distance: 0.6      # m, CHARGE_RELEASE: forward off the pad when full
+    charging_linear_speed: 0.1         # m/s
+    charging_drive_stall_timeout: 3.0   # s without movement while backing off/releasing = stuck
+    charging_angular_speed: 0.8         # rad/s, turn cruise speed
+    charging_min_angular_speed: 0.3     # rad/s, floor while slowing near pi
+    charging_rotate_timeout: 0.0        # s, 0 = auto (~26 s for pi at 0.3 rad/s)
+    charging_rotate_stall_timeout: 3.0  # s with < charging_rotate_stall_angle of turn = blocked
+    charging_rotate_stall_angle: 0.03   # rad
+    charging_contact_topic: "charger_contact"     # -> /<robot>/charger_contact
+    # charging_robot_name defaults to the namespace (e.g. forklift1) = Gazebo model name

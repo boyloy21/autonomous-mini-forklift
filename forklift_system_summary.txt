@@ -1,0 +1,422 @@
+=====================================================================
+ MINI FORKLIFT AMR - ROS 2 SYSTEM SUMMARY (for building the Web Dashboard)
+ Workspace: ~/miniforklift_ws/src   |  ROS 2 Humble  |  Nav2 + Ignition Gazebo
+=====================================================================
+
+---------------------------------------------------------------------
+1. PACKAGE LIST (what each ROS2 package does)
+---------------------------------------------------------------------
+forklift_interfaces      Custom msg / srv / action definitions (shared by all)
+forklift_description     URDF/xacro, meshes, RViz config, robot_state_publisher
+forklift_gazebo          Ignition Gazebo world + ros_gz bridge (sensors, odom, cmd_vel)
+forklift_bringup         Top-level launch (single & multi-robot), robots.yaml
+forklift_controller      Lift (fork) control: driver/limit/feedback/safety nodes,
+                         action server /set_height (SetLiftHeight)
+forklift_localization    robot_localization EKF (odom + imu)
+forklift_navigation      Nav2 stack: AMCL, map_server, SLAM (slam_toolbox), planner,
+                         controller (RPP / DWB / MPPI), route_server + GeoJSON routes
+forklift_docking         opennav_docking plugin, dock_database.yaml, pallet dock workflow
+forklift_aruco           ArUco detection (camera) -> pose for docking
+pallet_vision            Pallet detection (vision)
+forklift_task_manager    ExecuteTask action server + queue (nav/dock/lift/charge steps)
+forklift_mission_manager ExecuteMission action server; mission -> sequence of tasks
+forklift_traffic_manager Multi-robot edge reservation (ReserveEdge srv)
+forklift_safety          E-stop, protective fields (lidar), obstacle monitor, speed zones,
+                         sensor watchdog, safety manager
+forklift_diagnostics     Hardware/system/sensor/maintenance/communication monitors
+forklift_remote          Keyboard / PS4 teleop
+forklift_web_bridge      *** The web-facing layer: REST(FastAPI) + rosbridge + video ***
+
+---------------------------------------------------------------------
+2. SYSTEM ARCHITECTURE
+---------------------------------------------------------------------
+
+  +--------------------------------------------------------------+
+  |                     WEB DASHBOARD (other PC)                 |
+  |  Live Map | Camera | LiDAR | Status | Nav | Route | Tasks    |
+  +-----------+-----------------+--------------------+-----------+
+              |                 |                    |
+       REST :8000        WebSocket :9090       MJPEG :8080
+       (FastAPI)         (rosbridge, roslibjs) (web_video_server)
+              |                 |                    |
+  +-----------v-----------------v--------------------v-----------+
+  |                    forklift_web_bridge                       |
+  |  fastapi_bridge  navigation_bridge  mission_bridge           |
+  |  robot_state     diagnostics_bridge bridge_manager           |
+  |  (mqtt_bridge - optional, not launched by default)           |
+  +------+----------------+------------------+-------------------+
+         | NavigateToPose | ExecuteMission   | /odom /battery /diagnostics
+         v                v                  |
+  +-------------+   +-------------------+    |
+  | Nav2        |   | mission_manager   |    |
+  | (AMCL, map, |   |  ExecuteMission   |    |
+  | planner,    |   +---------+---------+    |
+  | route_server|             | ExecuteTask  |
+  | controller) |             v              |
+  |             |   +-------------------+    |
+  |             |<--| task_manager      |    |
+  +------+------+   | nav/dock/lift/    |    |
+         |          | charge/station    |    |
+         |          +----+-----+--------+    |
+         |               |     |             |
+         |      DockRobot|     |SetLiftHeight|
+         |               v     v             |
+         |     forklift_docking  forklift_controller
+         |     (+ forklift_aruco)  (lift)    |
+         v                                   v
+     /cmd_vel  --> forklift_safety (limits/e-stop) --> Gazebo / real motors
+     /scan /odom /imu /camera/* <-- sensors <-- Gazebo bridge / hardware
+
+Data flow rules:
+  * Dashboard NEVER talks to Nav2/mission directly - only via web_bridge.
+  * Commands: dashboard -> web_bridge/*_command (JSON in std_msgs/String)
+              -> bridge node -> ROS action goal.
+  * Status  : ROS topic -> bridge node -> web_bridge/*_status (JSON) -> dashboard.
+  * Camera  : bypasses JSON; web_video_server serves MJPEG straight from image topic.
+
+Task hierarchy (top -> bottom):
+  Mission (ExecuteMission)  ->  Tasks (ExecuteTask)  ->  Nav2 / Dock / Lift actions
+
+---------------------------------------------------------------------
+3. HOW TO RUN (order)
+---------------------------------------------------------------------
+  1) ros2 launch forklift_bringup single_robot_bringup.launch.py
+        (Gazebo + nav + docking + task/mission mgr + safety + diagnostics)
+  2) ros2 launch forklift_web_bridge forklift_web_bridge.launch.py
+        (rosbridge :9090, web_video_server :8080, REST :8000, all bridge nodes)
+  Mapping mode : ros2 launch forklift_navigation mapping_launch.py (slam_toolbox + map_saver)
+  Localization : ros2 launch forklift_navigation localization_launch.py
+
+  Dashboard PC must be on same network & same ROS_DOMAIN_ID is NOT needed
+  (it uses HTTP/WebSocket only). Just open ports 8000, 9090, 8080 on robot PC.
+  Robot ID: "forklift01" (config/robot.yaml). Multi-robot uses namespaces
+  (forklift1, forklift2...) in forklift_bringup/config/robots.yaml.
+
+---------------------------------------------------------------------
+4. CONNECTION ENDPOINTS (dashboard side)
+---------------------------------------------------------------------
+  REST      http://<ROBOT_IP>:8000            (FastAPI, JSON)
+  WebSocket ws://<ROBOT_IP>:9090              (rosbridge, use roslibjs)
+  Video     http://<ROBOT_IP>:8080/stream?topic=/camera/image_raw
+            http://<ROBOT_IP>:8080/snapshot?topic=/camera/image_raw
+            (other topics: /camera/aruco/image  = annotated ArUco debug view)
+  MQTT      (optional) broker :1883, prefix  factory/<robot_id>/*
+  NOTE: fastapi.yaml in the package says port 8080 for REST but web_bridge.yaml
+        (the one really used) says REST=8000, video=8080. Use 8000 for REST.
+
+---------------------------------------------------------------------
+5. REST API (fastapi_bridge_node, port 8000) - AVAILABLE NOW
+---------------------------------------------------------------------
+  GET  /health                 -> {"status":"ok"}
+  GET  /robot/state            -> {pose, velocity, battery, timestamp}
+  GET  /navigation/status      -> {state: IDLE|EXECUTING|SUCCEEDED|FAILED|CANCELED,
+                                    message, goal_active}
+  POST /navigation/goal        body {"x":1.5,"y":-0.5,"yaw":0.0,"frame_id":"map"}
+  POST /navigation/cancel
+  GET  /mission/status         -> mirrors ExecuteMission feedback/result
+  POST /mission/execute        body MissionRequest:
+        { mission_id, mission_type, pick_dock_id, drop_dock_id, dock_id,
+          station_wait_duration, waypoints:[[x,y,yaw],..],
+          pick_area_pose, drop_area_pose }
+  POST /mission/cancel
+  GET  /diagnostics/summary    -> {overall_level, components[], timestamp}
+  GET  /bridge/status          -> {bridges_ready, checks{}, timestamp}
+  * POST returns {"accepted":true} immediately = "published", NOT "done".
+    Poll the GET status endpoint for the real result.
+
+Example:
+  curl -X POST http://<IP>:8000/navigation/goal -H "Content-Type: application/json" \
+       -d '{"x":1.5,"y":-0.5,"yaw":0.0}'
+  curl -X POST http://<IP>:8000/mission/execute -H "Content-Type: application/json" \
+       -d '{"mission_type":"PALLET_TRANSPORT","pick_dock_id":"pallet_pick_dock_1","drop_dock_id":"pallet_drop_dock_1"}'
+
+---------------------------------------------------------------------
+6. ROSBRIDGE (WebSocket :9090) - TOPICS THE DASHBOARD CAN USE
+---------------------------------------------------------------------
+ A) web_bridge JSON topics (type std_msgs/String, payload = JSON text)
+   web_bridge/robot_state          OUT  {pose, velocity, battery, timestamp} (5 Hz)
+   web_bridge/navigation_status    OUT  {state, message, goal_active}
+   web_bridge/mission_status       OUT  ExecuteMission feedback (mission_id,current_task,
+                                        current_task_index,total_tasks,progress,state,message)
+   web_bridge/diagnostics_summary  OUT  {overall_level, components[]}
+   web_bridge/status               OUT  {bridges_ready, checks{}}
+   web_bridge/nav_command          IN   {"command":"navigate","x","y","yaw","frame_id"}
+                                        {"command":"cancel"}
+   web_bridge/mission_command      IN   {"command":"execute","mission_type",...}
+                                        {"command":"cancel"} | {"command":"query"}
+
+ B) Raw ROS topics you can subscribe to directly through rosbridge
+   (this is what you use for LIVE MAP / LIDAR / POSITION / PATH visuals)
+
+   Topic                          Type                           Use in dashboard
+   -----------------------------  -----------------------------  ---------------------------
+   /map                           nav_msgs/OccupancyGrid         Live map background
+   /amcl_pose                     geometry_msgs/PoseWithCovarianceStamped   Robot pose on map
+   /odom                          nav_msgs/Odometry              Velocity / odom pose
+   /tf, /tf_static                tf2_msgs/TFMessage             map->odom->base_link
+   /scan                          sensor_msgs/LaserScan          LiDAR visualization
+   /scan/points                   sensor_msgs/PointCloud2        3D/point cloud LiDAR
+   /plan                          nav_msgs/Path                  Global path (Nav2 planner)
+   /local_plan                    nav_msgs/Path                  Local path (controller)
+   /global_costmap/costmap        nav_msgs/OccupancyGrid         Costmap overlay
+   /local_costmap/costmap         nav_msgs/OccupancyGrid         Local costmap overlay
+   /route_graph                   visualization_msgs/MarkerArray Route graph (route_server) *
+   /imu                           sensor_msgs/Imu                Sensor status
+   /battery_state                 sensor_msgs/BatteryState       Battery
+   /joint_states                  sensor_msgs/JointState         Lift / wheel joints
+   /CurrentHeight                 forklift_interfaces/CurrentHeight   Lift height, moving
+   /robot_state                   forklift_interfaces/RobotState Aggregated snapshot
+   /robot_health                  forklift_interfaces/RobotHealth Health level
+   /sensor_status                 forklift_interfaces/SensorStatus lidar/imu/ultrasonic/camera/encoder ok
+   /safety/status                 forklift_interfaces/SafetyStatus SAFE/WARNING/SLOWDOWN/STOP/EMERGENCY
+   /safety/allow_motion           std_msgs/Bool
+   /obstacle_state                forklift_interfaces/ObstacleState
+   /emergency_stop                std_msgs/Bool                  Publish true = E-STOP
+   /max_speed                     std_msgs/Float32               Current speed-zone limit
+   /task_manager/status           forklift_interfaces/TaskManagerStatus  Current task + queue length
+   /diagnostics/status            forklift_interfaces/DiagnosticsStatus
+   /diagnostics/warning|error     forklift_interfaces/DiagnosticsAlert
+   /hardware/status /system/status /sensor/status /maintenance/status /communication/status
+   /camera/image_raw              sensor_msgs/Image              (use web_video_server instead)
+   /camera/aruco/markers          geometry_msgs/PoseArray        Detected ArUco poses
+   /cmd_vel                       geometry_msgs/Twist            Manual drive (publish)
+   /initialpose                   geometry_msgs/PoseWithCovarianceStamped  RELOCATE (publish)
+   /goal_pose                     geometry_msgs/PoseStamped      Simple nav goal (Nav2)
+   * topic names marked * / plan / costmap are Nav2 defaults - verify with
+     `ros2 topic list` (multi-robot uses /<namespace>/... prefix).
+
+ C) Actions / services callable via rosbridge (roslibjs ActionClient / Service)
+   /navigate_to_pose        nav2_msgs/NavigateToPose        Go to pose
+   /navigate_through_poses  nav2_msgs/NavigateThroughPoses  Multi-point route
+   /follow_waypoints        nav2_msgs/FollowWaypoints       Patrol points
+   /compute_route, /navigate_through_route (route_server)   Route-graph navigation
+   /execute_mission         forklift_interfaces/ExecuteMission
+   /execute_task            forklift_interfaces/ExecuteTask
+   /dock_robot , /undock_robot                              opennav_docking
+   /set_height              forklift_interfaces/SetLiftHeight
+   (srv) /task_manager/get_status  GetTaskStatus  (srv) /.../clear_queue ClearQueue
+   (srv) /reserve_edge      ReserveEdge  (multi-robot traffic)
+   (srv) emergency-stop reset (std_srvs/Trigger, in emergency_stop_node)
+   (srv) /map_server/load_map, /slam_toolbox/save_map, /slam_toolbox/serialize_map
+   Exact service/action names should be confirmed with `ros2 service list`
+   / `ros2 action list` on the running robot.
+
+---------------------------------------------------------------------
+7. KEY MESSAGE / ACTION DEFINITIONS (forklift_interfaces)
+---------------------------------------------------------------------
+RobotState  : robot_id, PoseStamped pose, Twist velocity, battery_percent,
+              battery_voltage, health_level(0 OK/1 WARN/2 ERR), task_state,
+              mission_state, safety_state, safety_allow_motion, stamp
+SafetyStatus: state {0 SAFE,1 WARNING,2 SLOWDOWN,3 STOP,4 EMERGENCY,5 RESET},
+              allow_motion, message
+SensorStatus: lidar_ok, imu_ok, ultrasonic_ok, camera_ok, encoder_ok, all_ok, message
+ObstacleState: obstacle_detected, collision_detected, path_blocked, distance,
+              source("lidar"/"ultrasonic"/"bumper"), message
+CurrentHeight: current_height(m), velocity, moving
+NavigationCommand: command {0 GOTO,1 WAYPOINTS,2 CANCEL,3 PAUSE,4 RESUME},
+              request_id, target_pose, waypoints[]
+NavigationStatus: request_id, state {0 NAVIGATING,1 SUCCEEDED,2 FAILED,3 CANCELLED},
+              progress, message     (defined, not yet published by anything)
+Task        : task_id, task_type {0 PICK,1 DROP,2 GO_CHARGE,3 WAIT,4 RETURN_HOME},
+              priority, target_pose, pallet_id, station_id, lift_height,
+              wait_duration, created_at
+TaskStatus  : state {0 PENDING,1 QUEUED,2 EXECUTING,3 SUCCEEDED,4 FAILED,
+              5 CANCELLED,6 PAUSED}, task_id, current_step, progress, message
+TaskManagerStatus: has_current_task, current_task_id, current_task_type,
+              current_state, queue_length
+Mission / MissionStep / MissionCommand {0 START,1 PAUSE,2 RESUME,3 CANCEL} /
+MissionStatus {0 PENDING,1 EXECUTING,2 SUCCEEDED,3 FAILED,4 CANCELLED}
+
+ExecuteTask action (task_type strings):
+   SINGLE_NAVIGATION (goal_pose) | PATROL_POINT (waypoints[]) |
+   PICK_PALLET_DOCK (dock_id,target_height) | DROP_PALLET_DOCK (dock_id) |
+   CHARGING_DOCK (dock_id) | STATION_DOCK (dock_id, station_wait_duration)
+   Feedback: task_id,task_type,current_step,step_index,total_steps,state,progress,message
+   Result  : success, error_code, message
+
+ExecuteMission action (mission_type strings):
+   PALLET_TRANSPORT (pick_dock_id, drop_dock_id, optional pick/drop_area_pose)
+   PATROL (waypoints[])   CHARGING (dock_id)   STATION_OPERATION (dock_id, station_wait_duration)
+   Feedback: mission_id,current_task,current_task_index,total_tasks,progress,state,message
+   Result  : success, message, failed_task
+
+---------------------------------------------------------------------
+8. CONFIG DATA FILES THE DASHBOARD SHOULD READ / EDIT
+---------------------------------------------------------------------
+ MAP
+   forklift_navigation/map/small_warehouse.yaml (+ .pgm)   resolution/origin needed
+   to convert pixel <-> world. Live version = /map topic.
+
+ ROUTES (route_server graph, GeoJSON)  forklift_navigation/config/routes/
+   forklift_route.geojson, ...V2, ...V3, ...V4 (latest)
+   Structure: FeatureCollection, frame "map"
+     Point feature           properties {frame:"map", id:N}            -> NODE (x,y in metres)
+     MultiLineString feature properties {id, startid, endid, cost,
+                                         overridable}                  -> directed EDGE
+   V4 = 38 nodes, 72 edges.
+   => "Make route" in dashboard = create nodes + edges and export this GeoJSON,
+      then point route_server `graph_filepath` to it (nav2_params.yaml -> route_server)
+      and reload/restart. route_server params: route_frame "map", path_density 0.05.
+
+ DOCKS   forklift_docking/config/dock_database.yaml
+   docks: name -> {type, frame, pose:[x,y,yaw], id(aruco), lift(m)}
+   types: charging_dock_1, station_dock_1/2, pallet_pick_dock_1..4,
+          pallet_drop_dock_1..4   (example: pallet_pick_dock_1 pose [0.0,1.5,3.14])
+   => Dashboard dropdowns for pick/drop/charge/station come from here.
+
+ MISSION TEMPLATES   forklift_mission_manager/config/missions.yaml
+   transport_pick1_to_drop1 .. 4 (PALLET_TRANSPORT), morning_charge (CHARGING),
+   patrol_main_aisle (PATROL waypoints [x,y,yaw]), station_1_operation (STATION_OPERATION)
+
+ TASK MANAGER   forklift_task_manager/config/task_manager.yaml
+   staging_x_offset, action names, battery_topic, charging thresholds.
+
+ SAFETY  forklift_safety/config/{safety,sensor,speed_zone}.yaml
+   warning 1.5 m, slow 0.8 m, stop distance, speed zones (min/max x,y,max_speed).
+
+ ROBOTS  forklift_bringup/config/robots.yaml  (name, initial x_pose/y_pose)
+
+---------------------------------------------------------------------
+9. FEATURE -> ROS MAPPING (what to build in the dashboard)
+---------------------------------------------------------------------
+ Feature                 Source / How                                       Status
+ ----------------------  -------------------------------------------------  ---------
+ Live Map                rosbridge /map (OccupancyGrid) -> canvas           direct ROS
+ Robot current position  /amcl_pose or web_bridge/robot_state or REST       READY (REST)
+                         /robot/state (odom pose). Prefer /amcl_pose (map frame)
+ Path planning (view)    /plan (global) + /local_plan (local)               direct ROS
+ route_path (view)       route_server topics (/route_graph, /route, tracked) + GeoJSON
+ Relocate (init pose)    publish /initialpose (PoseWithCovarianceStamped,   direct ROS
+                         frame_id "map") - same as RViz "2D Pose Estimate"  (no REST yet)
+ Navigation (goto)       REST POST /navigation/goal  or /navigate_to_pose   READY (REST)
+                         cancel: POST /navigation/cancel
+ Patrol points           REST POST /mission/execute mission_type PATROL     READY (REST)
+                         waypoints [[x,y,yaw],...]  (or /follow_waypoints)
+ Make route              build graph -> save GeoJSON (Section 8) ->         NEEDS NEW
+                         route_server reload; run with /navigate_through_route  backend endpoint
+ Task management         ExecuteTask action /execute_task, GetTaskStatus,   PARTIAL
+                         ClearQueue, /task_manager/status                    (no REST for task)
+ Mission management      REST /mission/execute|cancel|status; templates from  READY
+                         missions.yaml
+ View camera             <img src="http://IP:8080/stream?topic=/camera/image_raw"> READY
+ LiDAR scan visualize    rosbridge /scan (LaserScan) -> draw ranges on       direct ROS
+                         canvas / ros3djs (or /scan/points PointCloud2)
+ Read sensor status      /sensor_status (SensorStatus), /imu, /battery_state,  direct ROS
+                         /CurrentHeight, /obstacle_state, /safety/status,
+                         REST /diagnostics/summary
+ Emergency stop          publish std_msgs/Bool true on /emergency_stop       direct ROS
+ Lift control            /set_height action (SetLiftHeight) or dock workflow  direct ROS
+ Diagnostics/health      REST /diagnostics/summary, /bridge/status           READY
+
+---------------------------------------------------------------------
+10. KNOWN GAPS / THINGS TO FIX OR ADD IN THE ROBOT SIDE
+---------------------------------------------------------------------
+ - REST has NO endpoints for: relocate, task queue, route/graph editing, sensors,
+   scan/map. Either use rosbridge (roslibjs) for those, or extend
+   fastapi_bridge_node.py (add e.g. POST /robot/relocate, GET/POST /routes,
+   POST /task/execute, GET /sensors/status).
+ - NavigationStatus msg + /navigation/status topic exist but nothing publishes them.
+ - web_bridge navigation only supports single-goal navigate/cancel; patrol goes via mission.
+ - mqtt_bridge_node is NOT launched by default (needs paho-mqtt + broker).
+ - forklift_web_server.launch.py is legacy/buggy (typo output='scree', doesn't add
+   web_video_server); use forklift_web_bridge.launch.py.
+ - fastapi.yaml / bridge.yaml / mqtt.yaml are unused or mismatched; real config is
+   web_bridge.yaml.
+ - Nav2 and route_server default topic names above should be verified live
+   (ros2 topic list) because namespaces/remaps differ in multi-robot mode.
+ - Rosbridge sends large messages (/map, PointCloud2) slowly: use throttle_rate,
+   queue_length, and compression (cbor) options; subscribe to /map once (latched,
+   transient_local) and redraw robot pose separately.
+
+---------------------------------------------------------------------
+11. DASHBOARD QUICK-START SNIPPETS
+---------------------------------------------------------------------
+ // roslibjs connection
+ const ros = new ROSLIB.Ros({ url: 'ws://<ROBOT_IP>:9090' });
+
+ // Live map
+ new ROSLIB.Topic({ros, name:'/map', messageType:'nav_msgs/msg/OccupancyGrid'})
+   .subscribe(m => drawMap(m));      // m.info.resolution, m.info.origin, m.data
+
+ // Robot position (map frame)
+ new ROSLIB.Topic({ros, name:'/amcl_pose',
+   messageType:'geometry_msgs/msg/PoseWithCovarianceStamped'}).subscribe(...);
+
+ // LiDAR
+ new ROSLIB.Topic({ros, name:'/scan', messageType:'sensor_msgs/msg/LaserScan',
+   throttle_rate:100}).subscribe(s => drawScan(s));  // angle_min, angle_increment, ranges
+
+ // Relocate (2D pose estimate)
+ new ROSLIB.Topic({ros, name:'/initialpose',
+   messageType:'geometry_msgs/msg/PoseWithCovarianceStamped'})
+   .publish({header:{frame_id:'map'}, pose:{pose:{position:{x,y,z:0},
+             orientation:{x:0,y:0,z:Math.sin(yaw/2),w:Math.cos(yaw/2)}},
+             covariance:[0.25,0,0,0,0,0, 0,0.25,0,0,0,0, 0,0,0,0,0,0,
+                         0,0,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0.0685]}});
+
+ // Send command through web_bridge (JSON)
+ new ROSLIB.Topic({ros, name:'web_bridge/nav_command', messageType:'std_msgs/msg/String'})
+   .publish({data: JSON.stringify({command:'navigate', x:1.5, y:-0.5, yaw:0, frame_id:'map'})});
+
+ // Emergency stop
+ new ROSLIB.Topic({ros, name:'/emergency_stop', messageType:'std_msgs/msg/Bool'})
+   .publish({data:true});
+
+ // Camera
+ <img src="http://<ROBOT_IP>:8080/stream?topic=/camera/image_raw&type=mjpeg&quality=60">
+
+ // Pixel <-> world for map canvas
+   x_world = origin.x + px * resolution
+   y_world = origin.y + (height - py) * resolution     (image y is flipped)
+
+---------------------------------------------------------------------
+12. SUGGESTED DASHBOARD PAGES
+---------------------------------------------------------------------
+ 1 Overview   : battery, pose, speed, safety state, health, mission/task state, E-STOP
+ 2 Live Map   : map + robot pose + LiDAR overlay + global/local path + route graph
+                + click = set goal / drag = set initial pose (relocate)
+ 3 Navigation : goto pose, cancel, patrol point list (add/remove/reorder) -> mission PATROL
+ 4 Routes     : node/edge editor over the map -> export GeoJSON (Section 8 format)
+ 5 Tasks      : task queue view (task_manager status), send task, clear queue
+ 6 Missions   : templates (missions.yaml) + custom PALLET_TRANSPORT / CHARGING / PATROL
+ 7 Camera     : MJPEG viewer + ArUco annotated view
+ 8 Sensors    : lidar/imu/ultrasonic/camera/encoder OK flags, lift height,
+                diagnostics components (hardware/system/maintenance/communication)
+
+---------------------------------------------------------------------
+13. MULTI-ROBOT (namespace) SUPPORT - forklift_web_bridge UPDATED
+---------------------------------------------------------------------
+ The launch file now takes a namespace and per-robot ports. Default
+ namespace is "" (single robot, nothing changes).
+
+   Single robot : ros2 launch forklift_web_bridge forklift_web_bridge.launch.py
+   Robot 1      : ros2 launch forklift_web_bridge forklift_web_bridge.launch.py \
+                    namespace:=forklift1 rosbridge_port:=9091 video_port:=8081 rest_port:=8001
+   Robot 2      : ros2 launch forklift_web_bridge forklift_web_bridge.launch.py \
+                    namespace:=forklift2 rosbridge_port:=9092 video_port:=8082 rest_port:=8002
+
+ Launch args: namespace(""), rosbridge_port(9090), video_port(8080),
+              rest_port(8000), use_sim_time(true)
+
+ What changed:
+   - Topic/action defaults are now RELATIVE (odom, battery_state, diagnostics,
+     navigate_to_pose, execute_mission, execute_task) -> resolve to /<ns>/...
+   - web_bridge.yaml node keys use "/**/<node>:" so params apply with or
+     without a namespace.
+   - bridge_manager_node expands relative names before checking the ROS graph.
+   - mqtt_bridge_node ROS-side names made relative (MQTT topics still
+     factory/<robot_id>/*; set robot_id per robot).
+   - Ports come from launch args (must be unique per robot).
+
+ Dashboard names with a namespace (via that robot's rosbridge port):
+   /forklift1/web_bridge/robot_state, /forklift1/web_bridge/nav_command, ...
+   raw topics: /forklift1/scan, /forklift1/map, /forklift1/amcl_pose ...
+   REST  : http://<IP>:8001/robot/state (robot 1), :8002 (robot 2)
+   Camera: http://<IP>:8081/stream?topic=/forklift1/camera/image_raw
+ Dashboard keeps a list: robot_id -> {ip, rest_port, rosbridge_port, video_port}.
+ Nav2 / task / mission nodes must run in the same namespace for the bridge to
+ find them (forklift_bringup does this per robot) - verify with `ros2 action list`.
+
+=====================================================================
+ END - generated from the source in ~/miniforklift_ws/src (2026-09-21)
+=====================================================================

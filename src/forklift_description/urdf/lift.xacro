@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+    <!--
+        Fork lift system.
+
+        Simplified as a single prismatic joint: lift_link (fork.stl) slides
+        vertically on base_link. If you later add a separate mast body,
+        split this into a fixed "mast_link" (mounted to base_link) and a
+        prismatic "lift_link" (mounted to mast_link) instead.
+
+        Joint:  lift_joint  (prismatic, moves along +Z, 0 = lowered)
+        Link:   lift_link   (carries fork.stl)
+    -->
+    <xacro:macro name="lift" params="prefix">
+
+        <link name="${prefix}_link">
+            <visual>
+                <origin xyz="-0.59 -0.045 0.15" rpy="0 0 3.14159"/>
+                <geometry>
+                    <mesh filename="package://forklift_description/meshes/fork.stl" scale="0.002 0.001 0.001"/>
+                </geometry>
+                <material name="red"/>
+            </visual>
+
+            <collision>
+                <origin xyz="-0.59 -0.045 0.15" rpy="0 0 3.14159"/>
+                <geometry>
+                    <mesh filename="package://forklift_description/meshes/fork.stl" scale="0.002 0.001 0.001"/>
+                </geometry>
+            </collision>
+
+            <xacro:box_inertia m="${mass_fork}" x="${fork_length}" y="${fork_width}" z="${fork_height}"/>
+        </link>
+
+        <joint name="${prefix}_joint" type="prismatic">
+            <parent link="base_link"/>
+            <child link="${prefix}_link"/>
+            <origin xyz="${lift_xoff+0.03} ${lift_yoff} ${lift_zoff}" rpy="0 0 0"/>
+            <axis xyz="0 0 1"/>
+            <limit lower="${lift_lower_limit}" upper="${lift_upper_limit}" effort="${lift_effort}" velocity="${lift_velocity}"/>
+            <dynamics damping="5.0" friction="1.0"/>
+        </joint>
+
+        <gazebo reference="${prefix}_link">
+            <material>Gazebo/Yellow</material>
+            <mu1>10.0</mu1>
+            <mu2>10.0</mu2>
+
+            <kp>1000000</kp>
+            <kd>10</kd>
+
+            <max_contacts>20</max_contacts>
+
+        </gazebo>
+
+    </xacro:macro>
+</robot>

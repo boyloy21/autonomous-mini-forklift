@@ -1,0 +1,18 @@
+robot_state_node:
+  ros__parameters:
+    robot_id: "forklift01"
+    robot_name: "Mini Forklift AMR 01"
+    ip_address: "0.0.0.0"
+
+bridge_manager_node:
+  ros__parameters:
+    robot_id: "forklift01"
+    robot_name: "Mini Forklift AMR 01"
+
+mqtt_bridge_node:
+  ros__parameters:
+    robot_id: "forklift01"
+
+fastapi_bridge_node:
+  ros__parameters:
+    robot_id: "forklift01"
