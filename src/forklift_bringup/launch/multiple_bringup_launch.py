@@ -333,7 +333,7 @@ def launch_setup(context, *args, **kwargs):
             TimerAction(
                 period=period,
                 actions=[
-                    bringup_cmd, initial_pose_cmd, docking_cmd, aruco_cmd,
+                    bringup_cmd, initial_pose_cmd, docking_cmd, aruco_cmd, rviz_cmd,
                     lift_controller_node, task_manager_cmd,mission_manager_cmd, diagnostics_cmd, web_bridge_cmd
                 ] + ([fake_battery_node] if use_fake_battery else []),
             )
