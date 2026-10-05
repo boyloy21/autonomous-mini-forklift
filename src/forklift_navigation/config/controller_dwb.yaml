@@ -32,7 +32,7 @@ controller_server:
 
       min_vel_x: -0.0
       min_vel_y: 0.0
-      max_vel_x: 0.4
+      max_vel_x: 0.55
       max_vel_y: 0.0
       max_vel_theta: 1.0
 
@@ -42,11 +42,11 @@ controller_server:
 
       acc_lim_x: 2.5
       acc_lim_y: 0.0
-      acc_lim_theta: 3.5
+      acc_lim_theta: 3.2
 
       decel_lim_x: -2.5
       decel_lim_y: 0.0
-      decel_lim_theta: -3.5
+      decel_lim_theta: -3.2
 
       vx_samples: 12
       vy_samples: 5
@@ -74,13 +74,13 @@ controller_server:
         ]
 
       BaseObstacle.scale: 0.3
-      PathAlign.scale: 40.0
+      PathAlign.scale: 35.0
       GoalAlign.scale: 8.0
-      PathAlign.forward_point_distance: 0.2
-      GoalAlign.forward_point_distance: 0.1
-      PathDist.scale: 40.0
+      PathAlign.forward_point_distance: 0.25
+      GoalAlign.forward_point_distance: 0.15
+      PathDist.scale: 35.0
       GoalDist.scale: 8.0
-      RotateToGoal.scale: 45.0
+      RotateToGoal.scale: 40.0
       RotateToGoal.slowing_factor: 5.0
       RotateToGoal.lookahead_time: 0.4
 
@@ -103,7 +103,7 @@ local_costmap:
       height: 5
       resolution: 0.05
       footprint: '[[0.3,0.3],[0.3,-0.3],[-0.3,-0.3],[-0.3,0.3]]'
-      plugins: ["obstacle_layer","voxel_layer", "inflation_layer"]
+      plugins: ["obstacle_layer", "virtual_layer", "voxel_layer", "inflation_layer"]
 
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
@@ -119,7 +119,11 @@ local_costmap:
           raytrace_min_range: 0.1
           obstacle_max_range: 2.5
           obstacle_min_range: 0.0
-      
+      virtual_layer:
+        plugin: "nav2_virtual_layer::VirtualLayer"
+        map_frame: map
+        forms_file: "package://forklift_navigation/config/virtual_layer/namespace.yaml"
+        enable_visualization: false
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         # See controller_mppi.yaml's local_costmap inflation_layer comment --
@@ -170,7 +174,7 @@ global_costmap:
       resolution: 0.05
       track_unknown_space: true
       map_topic: namespace/map
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      plugins: ["static_layer", "virtual_layer", "obstacle_layer", "inflation_layer"]
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
@@ -191,7 +195,15 @@ global_costmap:
           raytrace_min_range: 0.1
           obstacle_max_range: 2.5
           obstacle_min_range: 0.0
-
+      virtual_layer:
+        plugin: "nav2_virtual_layer::VirtualLayer"
+        enabled: true
+        map_frame: map
+        default_cost_level: 254
+        # launch replaces "namespace" -> "/forklift1" => .../virtual_layer//forklift1.yaml
+        forms_file: "package://forklift_navigation/config/virtual_layer/namespace.yaml"
+        enable_visualization: true
+        visualization_rate: 1.0
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0

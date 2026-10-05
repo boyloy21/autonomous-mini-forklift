@@ -334,11 +334,15 @@ route_server:
     graph_file_loader.plugin: nav2_route::GeoJsonGraphFileLoader  # file loader plugin to use
     graph_filepath: "/home/yunboyloy/miniforklift_ws/src/forklift_navigation/config/routes/forklift_route.geojson"                           # file path to graph to use
 
-    edge_cost_functions: ["DistanceScorer", "DynamicEdgesScorer"]  # Edge scoring cost functions to use
+    edge_cost_functions: ["DistanceScorer", "DynamicEdgesScorer", "CostmapScorer"]  # Edge scoring cost functions to use
     DistanceScorer:
       plugin: "nav2_route::DistanceScorer"
     DynamicEdgesScorer:
       plugin: "nav2_route::DynamicEdgesScorer"
+    CostmapScorer:
+      plugin: "nav2_route::CostmapScorer"
+      costmap_topic: "namespace/global_costmap/costmap_raw"
+      invalid_on_collision: true
 
     operations: ["AdjustSpeedLimit", "ReroutingService"] # Route operations plugins to use
     AdjustSpeedLimit:
@@ -348,13 +352,13 @@ route_server:
 
     tracker_update_rate: 50.0                     # Rate at which to check the status of path tracking
     aggregate_blocked_ids: false                  # Whether to aggregate the blocked IDs reported by route operations over the lifespan of the navigation request or only use the currently blocked IDs.
-    boundary_radius_to_achieve_node: 1.0          # Radius (m) near boundary nodes (e.g. start/end) to enable evaluation of achievement metric
+    boundary_radius_to_achieve_node: 0.05          # Radius (m) near boundary nodes (e.g. start/end) to enable evaluation of achievement metric
     
-    radius_to_achieve_node: 2.0                   # Radius (m) near route nodes as preliminary condition for evaluation of achievement metric
+    radius_to_achieve_node: 1.0                   # Radius (m) near route nodes as preliminary condition for evaluation of achievement metric
     
     max_prune_dist_from_edge: 8.0                       # Max distance from an edge to consider pruning it as in-progress (e.g. if we're too far away from the edge, its nonsensical to prune it)
-    min_prune_dist_from_goal: 0.4                      # Min distance from goal node away from goal pose to consider goal node pruning as considering it as being passed (in case goal pose is very close to a goal node, but not exact)
-    min_prune_dist_from_start: 0.4                     # Min distance from start node away from start pose to consider start node pruning as considering it as being passed (in case start pose is very close to a start node, but not exact)
+    min_prune_dist_from_goal: 0.6                      # Min distance from goal node away from goal pose to consider goal node pruning as considering it as being passed (in case goal pose is very close to a goal node, but not exact)
+    min_prune_dist_from_start: 0.8                     # Min distance from start node away from start pose to consider start node pruning as considering it as being passed (in case start pose is very close to a start node, but not exact)
     prune_goal: false                              # Whether pruning the goal nodes from the route due to being past the goal pose requested is possible (pose requests only)
     enable_nn_search: true                        # Whether to enable breadth first search considering the costmap to find the node closest to the start and edge poses, rather than using the euclidean nearest neighbor alone.
     max_nn_search_iterations: 10000               # Maximum number of iterations for breadth-first search.

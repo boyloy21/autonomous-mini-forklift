@@ -13,7 +13,7 @@ bridge_manager_node:
   ros__parameters:
     status_topic: "web_bridge/status"
     publish_rate_hz: 1.0
-    navigate_action_name: "/navigate_to_pose"
+    navigate_action_name: "navigate_to_pose"
     execute_mission_action_name: "execute_mission"
     execute_task_action_name: "execute_task"
     diagnostics_topic: "diagnostics"
@@ -21,8 +21,8 @@ bridge_manager_node:
 
 robot_state_node:
   ros__parameters:
-    odom_topic: "/odom"
-    battery_topic: "/battery_state"
+    odom_topic: "odom"
+    battery_topic: "battery_state"
     robot_state_topic: "web_bridge/robot_state"
     publish_rate_hz: 5.0
 
@@ -30,14 +30,14 @@ navigation_bridge_node:
   ros__parameters:
     nav_command_topic: "web_bridge/nav_command"
     nav_status_topic: "web_bridge/navigation_status"
-    navigate_action_name: "/navigate_to_pose"
+    navigate_action_name: "navigate_to_pose"
     default_frame_id: "map"
 
 mission_bridge_node:
   ros__parameters:
     mission_command_topic: "web_bridge/mission_command"
     mission_status_topic: "web_bridge/mission_status"
-    execute_mission_action_name: "/execute_mission"
+    execute_mission_action_name: "execute_mission"
     default_frame_id: "map"
     # Step detail from forklift_task_manager's task_status topic, merged
     # into mission_status as its "task" object (README section 6.1).
@@ -50,7 +50,7 @@ mission_bridge_node:
 
 diagnostics_bridge_node:
   ros__parameters:
-    diagnostics_topic: "/diagnostics"
+    diagnostics_topic: "diagnostics"
     summary_topic: "web_bridge/diagnostics_summary"
 
 fastapi_bridge_node:
@@ -81,3 +81,13 @@ fastapi_bridge_node:
     # copy) unless mission_database_file is set. No reload call needed.
     mission_server_node: "mission_server"
     mission_database_file: ""
+    # PUT /virtual-layer/shapes: one nav2_virtual_layer forms file per
+    # robot. Listed robots get their file written even while offline;
+    # running robots are also found on the graph. A namespace-less
+    # global_costmap (single-robot bringup) counts as
+    # virtual_layer_default_robot. virtual_layer_dir empty = ask each
+    # global_costmap for virtual_layer.forms_file, else
+    # forklift_navigation's installed config/virtual_layer/.
+    virtual_layer_robots: ["forklift1", "forklift2", "forklift3"]
+    virtual_layer_default_robot: "forklift1"
+    virtual_layer_dir: ""

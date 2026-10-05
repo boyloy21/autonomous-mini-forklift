@@ -264,6 +264,20 @@ Visualization Manager:
             Value: /global_costmap/costmap
           Use Timestamp: false
           Value: true
+        # Dashboard virtual walls/zones: ID labels from nav2_virtual_layer
+        # (the shapes themselves show up in Global Costmap above).
+        - Class: rviz_default_plugins/MarkerArray
+          Enabled: true
+          Name: Virtual Layer IDs
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /global_costmap/virtual_layer/shape_markers
+          Value: true
         - Alpha: 0.3
           Class: rviz_default_plugins/Map
           Color Scheme: costmap

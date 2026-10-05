@@ -41,6 +41,14 @@ mission_server loads that file only to offer named lookups that nothing
 currently calls -- every mission is executed from a fully-specified
 ExecuteMission goal -- so a new template is usable as soon as it is
 written.
+
+Virtual walls/zones (PUT /virtual-layer/shapes, GET /virtual-layer/status)
+follow the /docks pattern too. The backend owns them (MongoDB) and always
+PUTs the full set; this node renders one nav2_virtual_layer forms file per
+robot (forklift_navigation/config/virtual_layer/<robot>.yaml unless that
+robot's global_costmap says otherwise), then calls each running robot's
+<ns>/global_costmap/virtual_layer/reload_shapes. Offline robots load
+their file when Nav2 starts, so nothing is lost across restarts.
 """
 
 import json
@@ -49,6 +57,7 @@ import os
 import re
 import tempfile
 import threading
+import time
 from typing import List, Literal, Optional
 
 import rclpy
@@ -57,12 +66,13 @@ from rclpy.parameter import parameter_value_to_python
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 
 from std_msgs.msg import String
+from std_srvs.srv import Trigger
 from rcl_interfaces.srv import GetParameters
 from nav2_msgs.srv import SetRouteGraph
 from opennav_docking_msgs.srv import ReloadDatabase
 from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
 
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
@@ -90,6 +100,16 @@ MISSION_DOCK_FIELDS = ("pick_dock_id", "drop_dock_id", "dock_id")
 FRAME_RE = re.compile(r"^[A-Za-z0-9_/]+$")
 RELOAD_DB_SERVICE_SUFFIX = "/docking_server/reload_database"
 RELOAD_DB_SERVICE_TYPE = "opennav_docking_msgs/srv/ReloadDatabase"
+# nav2_virtual_layer in each robot's global_costmap (node
+# <ns>/global_costmap/global_costmap, services <ns>/global_costmap/virtual_layer/*).
+VIRTUAL_LAYER_RELOAD_SUFFIX = "/global_costmap/virtual_layer/reload_shapes"
+VIRTUAL_LAYER_RELOAD_TYPE = "std_srvs/srv/Trigger"
+VIRTUAL_LAYER_COSTMAP_NODE = "/global_costmap/global_costmap"
+VIRTUAL_LAYER_FILE_PARAM = "virtual_layer.forms_file"
+ROBOT_NAME_RE = re.compile(r"^[A-Za-z0-9_]+$")
+REVISION_RE = re.compile(r"^#\s*revision:\s*(-?\d+)\s*$", re.MULTILINE)
+KEEPOUT_COST = 254  # nav2_virtual_layer maps 254 -> LETHAL_OBSTACLE
+MAX_AVOID_COST = 252  # 253 -> INSCRIBED, which the planner treats as blocked
 
 
 class NavigateRequest(BaseModel):
@@ -134,6 +154,30 @@ class MissionTemplateRequest(BaseModel):
     drop_area_pose: Optional[List[float]] = None
 
 
+class VirtualShapeGeometry(BaseModel):
+    type: Literal["polyline", "polygon", "circle"]
+    points: Optional[List[List[float]]] = None  # [[x, y], ...] in map frame (m)
+    center: Optional[List[float]] = None        # circle: [x, y]
+    radius: Optional[float] = None              # circle (m)
+
+
+class VirtualShape(BaseModel):
+    id: str                                     # backend (MongoDB) id
+    kind: Literal["wall", "zone"]
+    name: str = ""
+    geometry: VirtualShapeGeometry
+    thickness: Optional[float] = None           # wall: full width (m)
+    zone_type: Optional[Literal["keepout", "avoid"]] = None
+    cost: Optional[int] = None                  # avoid zone: 1..252
+    robots: List[str] = []                      # [] = every robot
+    enabled: bool = True
+
+
+class VirtualLayerShapesRequest(BaseModel):
+    revision: int
+    shapes: List[VirtualShape]
+
+
 class FastApiBridgeNode(Node):
     def __init__(self):
         super().__init__("fastapi_bridge_node")
@@ -164,6 +208,17 @@ class FastApiBridgeNode(Node):
         # installed config.
         self.declare_parameter("mission_server_node", "mission_server")
         self.declare_parameter("mission_database_file", "")
+        # Virtual walls/zones: one nav2_virtual_layer forms file per robot.
+        # Robots listed here get their file written even while offline, so
+        # Nav2 loads the latest shapes when it starts; robots found on the
+        # graph (<ns>/global_costmap/virtual_layer/reload_shapes) are added.
+        self.declare_parameter(
+            "virtual_layer_robots", ["forklift1", "forklift2", "forklift3"])
+        # Robot a namespace-less global_costmap (single-robot bringup) is.
+        self.declare_parameter("virtual_layer_default_robot", "forklift1")
+        # Empty = ask each global_costmap for its virtual_layer.forms_file,
+        # else forklift_navigation's installed config/virtual_layer/.
+        self.declare_parameter("virtual_layer_dir", "")
 
         self._lock = threading.Lock()
         # Serializes POST /routes/graph so two dashboards can't interleave
@@ -177,6 +232,12 @@ class FastApiBridgeNode(Node):
         self._reload_db_clients = {}
         self._mission_write_lock = threading.Lock()
         self._mission_database_file = None
+        # Serializes PUT /virtual-layer/shapes: render + write + reload of
+        # every robot's file is one step.
+        self._virtual_layer_lock = threading.Lock()
+        self._virtual_layer_files = {}          # robot -> path (from its costmap)
+        self._virtual_layer_clients = {}        # service/node name -> client
+        self._virtual_layer_last_sync = {}      # robot -> last PUT result
         self._cache = {
             "robot_state": None,
             "navigation_status": None,
@@ -365,6 +426,77 @@ class FastApiBridgeNode(Node):
         response = self._call_service(self.set_route_graph_client, request)
         return None if response is None else bool(response.success)
 
+    def _virtual_layer_client(self, srv_type, name):
+        client = self._virtual_layer_clients.get(name)
+        if client is None:
+            client = self.create_client(srv_type, name)
+            self._virtual_layer_clients[name] = client
+        return client
+
+    def virtual_layer_robots(self):
+        """{robot: its global_costmap namespace ("/forklift1"), or None if offline}.
+
+        The robots named in virtual_layer_robots, plus every robot whose
+        global_costmap virtual_layer is on the graph right now.
+        """
+        robots = {name: None for name in self.get_parameter("virtual_layer_robots").value}
+        default_robot = self.get_parameter("virtual_layer_default_robot").value
+        for name, types in self.get_service_names_and_types():
+            if (not name.endswith(VIRTUAL_LAYER_RELOAD_SUFFIX) or
+                    VIRTUAL_LAYER_RELOAD_TYPE not in types):
+                continue
+            namespace = name[:-len(VIRTUAL_LAYER_RELOAD_SUFFIX)]
+            robot = namespace.strip("/") or default_robot
+            if ROBOT_NAME_RE.match(robot):
+                robots[robot] = namespace
+        return robots
+
+    def get_virtual_layer_file(self, robot, namespace):
+        """Forms file of `robot`: virtual_layer_dir > its costmap > package.
+
+        Asks the running global_costmap for virtual_layer.forms_file so the
+        bridge always writes the file Nav2 actually loaded; an offline
+        robot gets forklift_navigation's config/virtual_layer/<robot>.yaml,
+        which is what nav2_params.yaml / nav2_multirobot_params.yaml name.
+        """
+        override_dir = self.get_parameter("virtual_layer_dir").value
+        if override_dir:
+            return os.path.realpath(os.path.join(override_dir, f"{robot}.yaml"))
+        with self._lock:
+            cached = self._virtual_layer_files.get(robot)
+        if cached:
+            return cached
+        if namespace is not None:
+            client = self._virtual_layer_client(
+                GetParameters, f"{namespace}{VIRTUAL_LAYER_COSTMAP_NODE}/get_parameters")
+            request = GetParameters.Request()
+            request.names = [VIRTUAL_LAYER_FILE_PARAM]
+            response = self._call_service(client, request)
+            path = None
+            if response is not None and response.values:
+                path = resolve_forms_file(parameter_value_to_python(response.values[0]))
+            if path:
+                # Symlinked (--symlink-install) -> the src/ file it points to.
+                path = os.path.realpath(path)
+                with self._lock:
+                    self._virtual_layer_files[robot] = path
+                return path
+        try:
+            return os.path.realpath(os.path.join(
+                get_package_share_directory("forklift_navigation"),
+                "config", "virtual_layer", f"{robot}.yaml"))
+        except PackageNotFoundError:
+            return None
+
+    def reload_virtual_layer(self, namespace):
+        """-> (True/False/None, message). None = no answer."""
+        client = self._virtual_layer_client(
+            Trigger, f"{namespace}{VIRTUAL_LAYER_RELOAD_SUFFIX}")
+        response = self._call_service(client, Trigger.Request())
+        if response is None:
+            return None, "reload_shapes did not answer"
+        return bool(response.success), response.message
+
 
 def validate_route_graph(graph):
     """Check a route graph matches what GeoJsonGraphFileLoader expects.
@@ -425,6 +557,173 @@ def validate_route_graph(graph):
     if not node_ids:
         errors.append("graph has no nodes")
     return errors
+
+
+def resolve_forms_file(value):
+    """nav2_virtual_layer forms_file param -> path, the way the plugin resolves it.
+
+    Handles absolute paths and package://<pkg>/<path>; anything else
+    (relative to nav2_virtual_layer's own share) is not used here -> None.
+    """
+    if not value:
+        return None
+    if value.startswith("package://"):
+        package, _, relative = value[len("package://"):].partition("/")
+        if not relative:
+            return None
+        try:
+            return os.path.normpath(
+                os.path.join(get_package_share_directory(package), relative))
+        except PackageNotFoundError:
+            return None
+    if value.startswith("/"):
+        return os.path.normpath(value)
+    return None
+
+
+def _finite_point(point):
+    return len(point) == 2 and all(math.isfinite(v) for v in point)
+
+
+def validate_virtual_shapes(req):
+    """Check a PUT /virtual-layer/shapes body. -> list of problems (empty = valid).
+
+    Pydantic has already checked types; this checks what nav2_virtual_layer
+    would otherwise silently drop or draw wrong.
+    """
+    errors = []
+    if req.revision < 0:
+        errors.append("revision must be >= 0")
+    seen = set()
+    for i, shape in enumerate(req.shapes):
+        where = f"shape {i} ({shape.id!r})"
+        if not shape.id:
+            errors.append(f"shape {i}: id must not be empty")
+        elif shape.id in seen:
+            errors.append(f"{where}: duplicate id")
+        seen.add(shape.id)
+        bad_robots = [r for r in shape.robots if not ROBOT_NAME_RE.match(r)]
+        if bad_robots:
+            errors.append(f"{where}: invalid robot name(s) {bad_robots}")
+
+        geometry = shape.geometry
+        points = geometry.points or []
+        if geometry.type in ("polyline", "polygon") and not all(map(_finite_point, points)):
+            errors.append(f"{where}: points must be [x, y] finite numbers")
+            continue
+
+        if shape.kind == "wall":
+            if geometry.type != "polyline":
+                errors.append(f"{where}: a wall's geometry.type must be 'polyline'")
+            elif len(points) < 2:
+                errors.append(f"{where}: a wall needs at least 2 points")
+            elif not any(math.dist(a, b) > 1e-6 for a, b in zip(points, points[1:])):
+                errors.append(f"{where}: all wall points are the same")
+            # Thinner than 2 costmap cells (0.05 m) leaves holes on diagonals.
+            if shape.thickness is None or not math.isfinite(shape.thickness) or \
+                    not 0.1 <= shape.thickness <= 5.0:
+                errors.append(f"{where}: wall thickness must be 0.1..5.0 m")
+            continue
+
+        # zone
+        if shape.zone_type is None:
+            errors.append(f"{where}: zone_type must be 'keepout' or 'avoid'")
+        elif shape.zone_type == "avoid" and (
+                shape.cost is None or not 1 <= shape.cost <= MAX_AVOID_COST):
+            errors.append(f"{where}: an avoid zone needs cost 1..{MAX_AVOID_COST}")
+        if geometry.type == "polygon":
+            if len(points) < 3:
+                errors.append(f"{where}: a polygon zone needs at least 3 points")
+        elif geometry.type == "circle":
+            if geometry.center is None or not _finite_point(geometry.center):
+                errors.append(f"{where}: a circle zone needs center [x, y]")
+            if geometry.radius is None or not math.isfinite(geometry.radius) or \
+                    geometry.radius <= 0:
+                errors.append(f"{where}: a circle zone needs radius > 0")
+        else:
+            errors.append(f"{where}: a zone's geometry.type must be 'polygon' or 'circle'")
+    return errors
+
+
+def _wkt_xy(x, y):
+    return f"{x:.3f} {y:.3f}"
+
+
+def virtual_shape_forms(shape):
+    """One validated shape -> [(WKT, cost)] for nav2_virtual_layer.
+
+    Walls become one filled rectangle per segment plus a circle at each
+    inner joint (no gap at corners), not LINESTRING: the plugin's
+    THICKNESS is a half-width and is overwritten by line_thickness at
+    startup but not on reload. Filled polygons need the "POLYGON((), ...)"
+    form -- the add_polygon service would only draw an open outline.
+    """
+    geometry = shape.geometry
+    if shape.kind == "wall":
+        half = shape.thickness / 2.0
+        forms = []
+        points = geometry.points
+        for (x1, y1), (x2, y2) in zip(points, points[1:]):
+            length = math.hypot(x2 - x1, y2 - y1)
+            if length < 1e-6:
+                continue
+            nx, ny = -(y2 - y1) / length * half, (x2 - x1) / length * half
+            corners = [(x1 + nx, y1 + ny), (x2 + nx, y2 + ny),
+                       (x2 - nx, y2 - ny), (x1 - nx, y1 - ny)]
+            forms.append(
+                ("POLYGON((), " + ", ".join(_wkt_xy(x, y) for x, y in corners) + ")",
+                 KEEPOUT_COST))
+        for x, y in points[1:-1]:
+            forms.append((f"CIRCLE({_wkt_xy(x, y)} {half:.3f})", KEEPOUT_COST))
+        return forms
+
+    cost = KEEPOUT_COST if shape.zone_type == "keepout" else shape.cost
+    if geometry.type == "circle":
+        x, y = geometry.center
+        return [(f"CIRCLE({_wkt_xy(x, y)} {geometry.radius:.3f})", cost)]
+    return [("POLYGON((), " + ", ".join(_wkt_xy(x, y) for x, y in geometry.points) + ")",
+             cost)]
+
+
+def render_virtual_layer_forms(shapes, robot, revision):
+    """forms_file text for `robot`. -> (text, number of forms).
+
+    Keeps the enabled shapes whose robots list is empty (whole fleet) or
+    names `robot`. IDs are 1..n per file (only RViz labels). The plugin
+    skips '#' lines, so the revision and each shape's backend id ride along
+    as comments. Its parser is line based: one quoted form per "- " line.
+    """
+    lines = [
+        f"# revision: {revision}",
+        "# Written by forklift_web_bridge (PUT /virtual-layer/shapes); edits here are",
+        "# overwritten on the next dashboard sync. Loaded by nav2_virtual_layer.",
+        "forms:",
+    ]
+    count = 0
+    for shape in shapes:
+        if not shape.enabled or (shape.robots and robot not in shape.robots):
+            continue
+        label = re.sub(r"[^A-Za-z0-9_.:-]", "_", shape.id)[:64]
+        lines.append(f"  # {shape.kind} {label}")
+        for wkt, cost in virtual_shape_forms(shape):
+            count += 1
+            lines.append(f'  - "{wkt} [COST:{cost}] [ID:{count}]"')
+    return "\n".join(lines) + "\n", count
+
+
+def read_forms_file_status(path):
+    """-> {"exists", "revision", "forms"} of a forms file on disk."""
+    try:
+        with open(path) as f:
+            text = f.read()
+    except (OSError, TypeError):
+        return {"exists": False, "revision": None, "forms": 0}
+    match = REVISION_RE.search(text)
+    return {
+        "exists": True,
+        "revision": int(match.group(1)) if match else None,
+        "forms": sum(1 for line in text.splitlines() if line.strip().startswith("- ")),
+    }
 
 
 def dock_to_json(name, fields):
@@ -608,6 +907,21 @@ def build_app(ros_node: FastApiBridgeNode) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Opening the bare host:port in a browser hits "/" and "/favicon.ico";
+    # answer both instead of logging 404s. Interactive docs live at /docs.
+    @app.get("/", include_in_schema=False)
+    def root():
+        return {
+            "service": "forklift_web_bridge REST API",
+            "namespace": ros_node.get_namespace(),
+            "docs": "/docs",
+            "health": "/health",
+        }
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon():
+        return Response(status_code=204)
 
     @app.get("/health")
     def health():
@@ -900,6 +1214,59 @@ def build_app(ros_node: FastApiBridgeNode) -> FastAPI:
         # looks templates up at execution time (every ExecuteMission goal
         # carries its own parameters), so no reload call is needed here.
         return mission_to_json(name, saved_fields)
+
+    @app.put("/virtual-layer/shapes")
+    def put_virtual_layer_shapes(req: VirtualLayerShapesRequest):
+        # Always the full set from the backend (MongoDB), never a delta:
+        # create, update and delete all end here, and a retry is harmless.
+        errors = validate_virtual_shapes(req)
+        if errors:
+            raise HTTPException(status_code=400, detail={"errors": errors})
+
+        results = {}
+        with ros_node._virtual_layer_lock:
+            for robot, namespace in sorted(ros_node.virtual_layer_robots().items()):
+                path = ros_node.get_virtual_layer_file(robot, namespace)
+                if not path:
+                    results[robot] = {"status": "write_failed", "file": None,
+                                      "detail": "forms file unknown"}
+                    continue
+                text, count = render_virtual_layer_forms(req.shapes, robot, req.revision)
+                try:
+                    write_file_atomic(path, text)
+                except OSError as e:
+                    results[robot] = {"status": "write_failed", "file": path, "detail": str(e)}
+                    continue
+                result = {"file": path, "forms": count}
+                if namespace is None:
+                    # Nav2 loads the file when it starts.
+                    result.update(status="offline", detail="file written, robot not running")
+                else:
+                    ok, message = ros_node.reload_virtual_layer(namespace)
+                    status = "ok" if ok else ("rejected" if ok is False else "no_answer")
+                    result.update(status=status, detail=message)
+                results[robot] = result
+
+            with ros_node._lock:
+                for robot, result in results.items():
+                    ros_node._virtual_layer_last_sync[robot] = dict(
+                        result, revision=req.revision, at=time.time())
+
+        # Shapes aimed at a robot this bridge doesn't know never reach Nav2.
+        unknown = sorted({r for s in req.shapes for r in s.robots} - set(results))
+        return {"revision": req.revision, "robots": results, "unknown_robots": unknown}
+
+    @app.get("/virtual-layer/status")
+    def virtual_layer_status():
+        robots = {}
+        for robot, namespace in sorted(ros_node.virtual_layer_robots().items()):
+            path = ros_node.get_virtual_layer_file(robot, namespace)
+            entry = {"online": namespace is not None, "file": path}
+            entry.update(read_forms_file_status(path))
+            with ros_node._lock:
+                entry["last_sync"] = ros_node._virtual_layer_last_sync.get(robot)
+            robots[robot] = entry
+        return {"robots": robots}
 
     return app
 

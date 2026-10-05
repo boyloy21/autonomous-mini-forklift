@@ -6,8 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /Map1
-        - /Local Costmap1
         - /Global Costmap1
+        - /Local Costmap1
       Splitter Ratio: 0.5
     Tree Height: 549
   - Class: nav2_rviz_plugins/Navigation 2
@@ -75,30 +75,67 @@ Visualization Manager:
         Value: namespace/scan
       Value: true
 
-    - Class: rviz_default_plugins/Map
-      Enabled: true
-      Name: Local Costmap
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: namespace/local_costmap/costmap
-      Update Topic:
-        Value: namespace/local_costmap/costmap_updates
-      Value: true
-
-    - Class: rviz_default_plugins/Map
+    # Costmaps in Nav2's "costmap" colours over the plain map (same as
+    # nav2_default_view.rviz): global faint (0.3), local on top (0.7).
+    # Transient Local: costmaps are published latched, and the multirobot
+    # global_costmap only sends the full grid once (always_send_full_costmap
+    # left at the Nav2 default false), then just costmap_updates -- a
+    # Volatile subscriber would miss that grid.
+    - Alpha: 0.3
+      Class: rviz_default_plugins/Map
+      Color Scheme: costmap
+      Draw Behind: false
       Enabled: true
       Name: Global Costmap
       Topic:
-        Depth: 5
-        Durability Policy: Volatile
+        Depth: 1
+        Durability Policy: Transient Local
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: namespace/global_costmap/costmap
       Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
         Value: namespace/global_costmap/costmap_updates
+      Use Timestamp: false
+      Value: true
+
+    - Alpha: 0.699999988079071
+      Class: rviz_default_plugins/Map
+      Color Scheme: costmap
+      Draw Behind: false
+      Enabled: true
+      Name: Local Costmap
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: namespace/local_costmap/costmap
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: namespace/local_costmap/costmap_updates
+      Use Timestamp: false
+      Value: true
+
+    # Dashboard virtual walls/zones: ID labels from nav2_virtual_layer
+    # (the shapes themselves show up in Global Costmap above).
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Virtual Layer IDs
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: namespace/global_costmap/virtual_layer/shape_markers
       Value: true
 
     - Alpha: 1

@@ -117,6 +117,8 @@ forklift_web_bridge/
 | GET | `/docks` | — | Every dock in `dock_database.yaml`, in file order: `[{name, type, frame, pose: [x, y, yaw], id, lift}]` |
 | POST | `/docks` | `{name?, type, frame="map", pose: [x, y, yaw], id?, lift?}` | Creates one dock (create-only), reloads docking_server(s), responds `201` with the saved entry |
 | POST | `/routes/graph` (`?force=true` optional) | Full graph GeoJSON (same shape as GET) | Validates, writes the file, and reloads it in route_server via `route_server/set_route_graph` |
+| PUT | `/virtual-layer/shapes` | `{revision, shapes: [...]}` — the **full** set of virtual walls/zones | Writes every robot's `nav2_virtual_layer` forms file and reloads it in each running `global_costmap` |
+| GET | `/virtual-layer/status` | — | Per robot: online, file, revision on disk, number of forms, last sync result |
 
 Example `curl` commands:
 
@@ -252,6 +254,72 @@ curl -X POST http://localhost:8000/missions/templates \
   -H "Content-Type: application/json" \
   -d '{"name": "transport_pick2_to_drop3", "mission_type": "PALLET_TRANSPORT",
        "pick_dock_id": "pallet_pick_dock_2", "drop_dock_id": "pallet_drop_dock_3"}'
+```
+
+### Virtual walls and zones (`/virtual-layer/*`)
+
+Dashboard virtual walls and zones become costs in each robot's
+`global_costmap` through `nav2_virtual_layer` (`src/nav2-virtual-layer`).
+The planner (NavFn, including the BT's last-mile `ComputePathToPose`)
+plans around them. `route_server` does not: it routes over graph edges,
+which ignore the costmap unless a `CostmapScorer` is configured. This
+endpoint only reloads `global_costmap`; a `local_costmap` virtual_layer
+(controller YAMLs) is not reloaded by it.
+
+- **Who owns the data**: the backend (MongoDB). It sends the **complete**
+  list on every create/update/delete, never a single change, so repeating
+  a request is harmless and a robot that missed one catches up on the next.
+- **Files**: one per robot, `forklift_navigation/config/virtual_layer/<robot>.yaml`
+  (the `forms_file` in `nav2_params.yaml` / `nav2_multirobot_params.yaml`).
+  A running robot's own `global_costmap` is asked for
+  `virtual_layer.forms_file` first; set `virtual_layer_dir` to override.
+  With `--symlink-install` the write lands in `src/`.
+- **Robots**: `virtual_layer_robots` (default `forklift1..3`) always get a
+  file, even while offline, and Nav2 loads it at startup. Running robots are
+  also found by their `<ns>/global_costmap/virtual_layer/reload_shapes`
+  service; a namespace-less one (single-robot bringup) is
+  `virtual_layer_default_robot`.
+- **PUT body**: `{"revision": int, "shapes": [shape, ...]}`, coordinates in
+  metres in the `map` frame (the plugin ignores any other frame).
+
+  | Field | Wall | Zone |
+  |---|---|---|
+  | `id` | backend id (unique) | same |
+  | `kind` | `"wall"` | `"zone"` |
+  | `geometry` | `{"type": "polyline", "points": [[x, y], ...]}` (≥ 2 points) | `{"type": "polygon", "points": [...]}` (≥ 3) or `{"type": "circle", "center": [x, y], "radius": r}` |
+  | `thickness` | full width, 0.1–5.0 m | — |
+  | `zone_type` | — | `"keepout"` (cost 254, lethal) or `"avoid"` |
+  | `cost` | — | `avoid` only: 1–252 (higher = avoided harder) |
+  | `robots` | `[]` = all robots, else names | same |
+  | `enabled` | `false` = left out of the files | same |
+
+  - `400` with `{"errors": [...]}` if a shape is invalid; nothing is written.
+  - Walls are written as one filled rectangle per segment plus a circle at
+    each inner corner, and polygon zones as filled `POLYGON((), ...)`. The
+    plugin's own `add_polygon` service only draws an open outline, and its
+    `LINESTRING` thickness is unreliable, so neither is used.
+  - Response: `{"revision", "robots": {name: {"status", "file", "forms",
+    "detail"}}, "unknown_robots": [...]}`. `status` is `ok` (reloaded),
+    `offline` (file written, loaded when Nav2 starts), `rejected` (e.g.
+    the file didn't exist when Nav2 started, so it can't reload until a
+    restart), `no_answer`, or `write_failed`. `unknown_robots` lists names in
+    `robots` fields that match no robot, so those shapes are applied nowhere.
+- **Expiry**: handle it in the backend (send a new set without the shape).
+  The plugin's own `DURATION` restarts on every reload.
+- **GET `/virtual-layer/status`**: `{"robots": {name: {"online", "file",
+  "exists", "revision", "forms", "last_sync"}}}`. Compare `revision` with
+  the backend's to find a robot that needs the set sent again.
+
+```bash
+curl -X PUT http://localhost:8000/virtual-layer/shapes -H "Content-Type: application/json" -d '{
+  "revision": 1,
+  "shapes": [
+    {"id": "w1", "kind": "wall", "geometry": {"type": "polyline", "points": [[1.2, -3.0], [4.5, -3.0]]},
+     "thickness": 0.1},
+    {"id": "z1", "kind": "zone", "zone_type": "keepout", "robots": ["forklift2"],
+     "geometry": {"type": "polygon", "points": [[0.5, -2.5], [1.5, -2.5], [1.5, -1.5], [0.5, -1.5]]}}
+  ]}'
+curl http://localhost:8000/virtual-layer/status
 ```
 
 **Note:** all navigation/mission POST endpoints respond `{"accepted": true}` immediately —

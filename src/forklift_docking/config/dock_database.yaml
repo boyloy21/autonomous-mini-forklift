@@ -44,28 +44,28 @@ docks:
   pallet_pick_dock_1:
     type: pallet_pick_dock
     frame: map
-    pose: [0.0, 1.5, 3.14]  
+    pose: [-0.3, 1.5, 3.14]  
     id: "0"
     lift: 0.08
 
   pallet_pick_dock_2:
     type: pallet_pick_dock
     frame: map
-    pose: [0.0, 2.5, 3.14]   
+    pose: [-0.3, 2.5, 3.14]   
     id: "1"
     lift: 0.08
 
   pallet_pick_dock_3:
     type: pallet_pick_dock
     frame: map
-    pose: [0.0, 3.5, 3.14]   
+    pose: [-0.3, 3.5, 3.14]   
     id: "2"
     lift: 0.08
 
   pallet_pick_dock_4:
     type: pallet_pick_dock
     frame: map
-    pose: [0.0, 4.5, 3.14]   
+    pose: [-0.3, 4.5, 3.14]   
     id: "3"
     lift: 0.08
 
