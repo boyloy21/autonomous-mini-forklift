@@ -1,4 +1,12 @@
+<p align="center">
+  <img src="docs/images/ai_farm_robotics_logo.png" alt="AI FARM ROBOTICS FACTORY logo" width="180"/>
+</p>
+
+<h3 align="center">AI FARM ROBOTICS FACTORY</h3>
+
 # Mini Forklift AMR — ROS 2 Nav2 Workspace
+
+> A project by **AI FARM ROBOTICS FACTORY**.
 
 An autonomous mini forklift for warehouse pallet handling, built on **ROS 2 Humble**, **Nav2** and **Gazebo Fortress (Ignition)**. The stack covers mapping, localization, route-graph navigation (VDA5050-style routes), ArUco-guided docking and charging, pallet detection with a depth camera, lift control, safety, diagnostics, task and mission management, and a web/MQTT bridge for a fleet dashboard.
 
@@ -375,3 +383,5 @@ Click a preview to open the video.
 ## License
 
 Apache License 2.0. See the `LICENSE` file in each package.
+
+Developed by **AI FARM ROBOTICS FACTORY**.
