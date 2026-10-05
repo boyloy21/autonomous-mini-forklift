@@ -26,6 +26,7 @@ An autonomous mini forklift for warehouse pallet handling, built on **ROS 2 Humb
 - [Packages](#packages)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Demo Videos](#demo-videos)
 - [Gallery](#gallery)
 - [License](#license)
 
@@ -237,6 +238,22 @@ ros2 launch forklift_web_bridge forklift_web_bridge.launch.py
 ros2 launch forklift_remote ps4_teleop.launch.py
 ros2 run forklift_remote keyboard_control_node
 ```
+
+---
+
+## Demo Videos
+
+Click a preview to open the video.
+
+| Single-robot navigation (MPPI) | Patrol-point navigation |
+|---|---|
+| [![Single-robot navigation with MPPI](docs/images/video_thumbs/single_navigation_mppi.jpg)](docs/videos/single_navigation_mppi.mp4) | [![Patrol-point navigation](docs/images/video_thumbs/make_patrol_point_navigation.jpg)](docs/videos/make_patrol_point_navigation.mp4) |
+| Point-to-point navigation with the MPPI controller | Navigating through a sequence of patrol points |
+
+| Docking and charging | Multi-robot pallet docking |
+|---|---|
+| [![Docking and charging](docs/images/video_thumbs/robot_dock_charging.jpg)](docs/videos/robot_dock_charging.mp4) | [![Multi-robot pallet docking task](docs/images/video_thumbs/Mulltiple_mini_forklift_pallet_docking_task.jpg)](docs/videos/Mulltiple_mini_forklift_pallet_docking_task.mp4) |
+| ArUco-guided docking at the charging station | Several forklifts running pallet docking tasks |
 
 ---
 
