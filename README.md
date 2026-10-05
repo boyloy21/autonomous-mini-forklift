@@ -196,15 +196,118 @@ Each package has its own `README.md` with more detail.
 
 ## Installation
 
-**Requirements:** Ubuntu 22.04, ROS 2 Humble, Gazebo Fortress, Nav2 (with `nav2_route` and `opennav_docking`).
+### Requirements
+
+| Item | Version |
+|---|---|
+| OS | Ubuntu 22.04 LTS (Jammy) |
+| ROS 2 | Humble Hawksbill (desktop) |
+| Simulator | Gazebo Fortress (Ignition Gazebo 6) |
+| Python | 3.10 |
+| GPU (optional) | NVIDIA GPU + CUDA. Recommended for `pallet_vision` (YOLO) and the GPU lidar in Gazebo |
+
+### 1. Install ROS 2 Humble
+
+Follow the official guide: <https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html>
+
+```bash
+sudo apt update
+sudo apt install -y ros-humble-desktop ros-dev-tools python3-pip
+sudo rosdep init   # skip if already initialised
+rosdep update
+```
+
+### 2. Install ROS packages (Nav2, Gazebo Fortress, control, etc.)
+
+`rosdep` (step 5) installs most of these. Listing them explicitly helps when rosdep misses one:
+
+```bash
+sudo apt install -y \
+  ros-humble-navigation2 ros-humble-nav2-bringup \
+  ros-humble-nav2-route ros-humble-nav2-mppi-controller \
+  ros-humble-opennav-docking ros-humble-opennav-docking-bt \
+  ros-humble-slam-toolbox ros-humble-robot-localization \
+  ros-humble-ros-gz ros-humble-ign-ros2-control \
+  ros-humble-ros2-control ros-humble-ros2-controllers \
+  ros-humble-xacro ros-humble-joint-state-publisher-gui \
+  ros-humble-tf-transformations ros-humble-cv-bridge \
+  ros-humble-rosbridge-server ros-humble-web-video-server \
+  ros-humble-joy ros-humble-topic-tools
+```
+
+> `ros-humble-ros-gz` pulls in Gazebo Fortress (`ignition-fortress`) on Ubuntu 22.04. Check it with `ign gazebo --version`, which should print 6.x.
+
+### 3. Clone the repository
 
 ```bash
 mkdir -p ~/miniforklift_ws && cd ~/miniforklift_ws
-git clone <this-repo-url> .
-rosdep install --from-paths src --ignore-src -r -y
-colcon build --symlink-install
-source install/setup.bash
+git clone https://github.com/boyloy21/autonomous-mini-forklift.git .
 ```
+
+### 4. Fix machine-specific absolute paths
+
+Some config, URDF/SDF and world files still contain absolute paths under `/home/yunboyloy/miniforklift_ws`. If you cloned into `~/miniforklift_ws` as in step 3, rewrite them to your home directory:
+
+```bash
+cd ~/miniforklift_ws
+grep -rl "/home/yunboyloy" src | xargs sed -i "s#/home/yunboyloy#$HOME#g"
+```
+
+### 5. Install dependencies
+
+```bash
+cd ~/miniforklift_ws
+source /opt/ros/humble/setup.bash
+
+# ROS dependencies declared in each package.xml
+rosdep install --from-paths src --ignore-src -r -y
+
+# Python dependencies not available through rosdep
+pip3 install -r requirements.txt
+```
+
+> For GPU inference, install the CUDA build of PyTorch that matches your driver. See <https://pytorch.org/get-started/locally/>. Without it, `pallet_vision` runs on the CPU.
+
+### 6. Build
+
+```bash
+cd ~/miniforklift_ws
+colcon build --symlink-install
+```
+
+To build a single package after changes: `colcon build --symlink-install --packages-select <package>`
+
+### 7. Environment setup
+
+Add to `~/.bashrc`:
+
+```bash
+source /opt/ros/humble/setup.bash
+source ~/miniforklift_ws/install/setup.bash
+export GZ_VERSION=fortress
+export ROS_DOMAIN_ID=22          # choose a unique ID per robot/developer on the same network
+```
+
+Then `source ~/.bashrc`.
+
+### 8. Verify
+
+```bash
+ros2 pkg list | grep forklift              # all forklift_* packages are listed
+ros2 interface list | grep forklift_interfaces
+ign gazebo --version                       # Gazebo Sim, version 6.x
+```
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `Unable to find uri[model://...]` / missing models in Gazebo | Re-run step 4 and rebuild. The world files reference models in the `install/` space |
+| `controller_manager` cannot load `forklift_controllers.yaml` | Same cause as above: the absolute path in the URDF/SDF must point to your workspace |
+| `module 'cv2' has no attribute 'aruco'` | `pip3 uninstall opencv-python && pip3 install opencv-contrib-python` |
+| `cv_bridge` crashes with a NumPy 2.x error | `pip3 install "numpy<2"` |
+| Topics missing between ROS and Gazebo | Make sure `GZ_VERSION=fortress` is set and `ros_gz_bridge` is running (`ros2 node list`) |
+| Nodes from other machines appear in `ros2 node list` | Set a unique `ROS_DOMAIN_ID` |
 
 ---
 
