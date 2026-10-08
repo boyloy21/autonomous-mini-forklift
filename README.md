@@ -13,7 +13,7 @@ An autonomous mini forklift for warehouse pallet handling, built on **ROS 2 Humb
 <p align="center">
   <img src="docs/images/robot_front_right.png" width="30%"/>
   <img src="docs/images/robot_side.png" width="30%" height="30%">
-  <img src="docs/images/robot_rear.png" width="30%" height="30%"/>
+  <img src="docs/images/robot_rear.png" width="50%" height="30%"/>
 </p>
 
 <p align="center">
